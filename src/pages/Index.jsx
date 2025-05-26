@@ -1,12 +1,17 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Play, Music } from "lucide-react";
 import { toast } from "sonner";
 import VideoUploader from "@/components/VideoUploader";
 import AudioUploader from "@/components/AudioUploader";
 import MediaPlayer from "@/components/MediaPlayer";
 import ControlsPanel from "@/components/ControlsPanel";
+import ProjectManager from "@/components/ProjectManager";
+// import BabyElephantWalkPlayer from "@/components/SoundCloudPlayer";
+import SoundCloudPlayer from "@/components/SoundCloudPlayer";
 
 const Index = () => {
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -16,6 +21,8 @@ const Index = () => {
   const [videoMuted, setVideoMuted] = useState(false);
   const [audioOffset, setAudioOffset] = useState(0);
   const [isMediaLoaded, setIsMediaLoaded] = useState(false);
+  const [soundCloudUrl, setSoundCloudUrl] = useState("");
+  const [idSoundCloud, setIdSoundCloud] = useState("");
   const audioRef = useRef(null);
   const youtubeRef = useRef(null);
 
@@ -28,45 +35,56 @@ const Index = () => {
   };
 
   const handleSyncAndPlay = () => {
-    if (!youtubeUrl || !audioFile) {
-      toast.info("Please provide both a YouTube URL and an audio file.");
+    if (!videoId || !idSoundCloud) {
+      toast.info(
+        "Please provide both YouTube Video ID and SoundCloud Track ID"
+      );
       return;
     }
 
-    const id = extractVideoId(youtubeUrl);
-    if (!id) {
-      toast.error("Please enter a valid YouTube URL.");
+    // Simple validation for video ID format
+    if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+      toast.error("Please enter a valid YouTube video ID");
       return;
     }
 
-    setVideoId(id);
     setIsMediaLoaded(true);
-    toast.success("YouTube video and audio are ready to play!");
+    toast.success("YouTube video and SoundCloud track are ready to play!");
   };
 
+  // Update togglePlayPause function
   const togglePlayPause = () => {
     if (!isMediaLoaded) return;
 
-    if (isPlaying) {
-      // Pause both
-      if (youtubeRef.current) {
+    const newPlayingState = !isPlaying;
+    setIsPlaying(newPlayingState);
+
+    // YouTube control
+    if (youtubeRef.current) {
+      if (newPlayingState) {
+        youtubeRef.current.playVideo();
+      } else {
         youtubeRef.current.pauseVideo();
       }
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    } else {
-      // Play both with offset
-      if (youtubeRef.current) {
-        youtubeRef.current.playVideo();
-      }
-      if (audioRef.current) {
-        setTimeout(() => {
-          audioRef.current?.play();
-        }, audioOffset * 1000);
-      }
     }
-    setIsPlaying(!isPlaying);
+
+    // SoundCloud will be controlled automatically through the useEffect in SoundCloudPlayer
+  };
+
+  // Handle loading project from ProjectManager
+  const handleLoadProject = ({
+    youtubeUrl: url,
+    videoId: id,
+    audioFileName,
+  }) => {
+    setYoutubeUrl(url);
+    setVideoId(id);
+    setIsMediaLoaded(true);
+    // Note: In real implementation, you'd fetch the audio file from Supabase Storage
+    toast.info(`Project loaded! Audio file: ${audioFileName}`);
+    toast.info(
+      "Note: Audio file needs to be re-uploaded (not stored in this demo)"
+    );
   };
 
   // Keyboard shortcuts
@@ -100,22 +118,31 @@ const Index = () => {
         <Card className="bg-white/10 backdrop-blur-md border-white/20">
           <CardContent className="p-6">
             <div className="grid lg:grid-cols-2 gap-6">
-              <VideoUploader
-                youtubeUrl={youtubeUrl}
-                setYoutubeUrl={setYoutubeUrl}
-              />
-              <AudioUploader
-                audioFile={audioFile}
-                setAudioFile={setAudioFile}
-              />
+              <VideoUploader videoId={videoId} setVideoId={setVideoId} />
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Music className="w-5 h-5 text-purple-400" />
+                  <Label className="text-white font-medium">
+                    SoundCloud Track ID
+                  </Label>
+                </div>
+                <Input
+                  id="idSoundCloud"
+                  type="text"
+                  placeholder="Enter SoundCloud track ID"
+                  value={idSoundCloud}
+                  onChange={(e) => setIdSoundCloud(e.target.value)}
+                  className="bg-white/10 border-white/20 text-white"
+                />
+              </div>
             </div>
 
             <div className="flex justify-center mt-6">
               <Button
                 onClick={handleSyncAndPlay}
                 size="lg"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-full transition-all duration-300 transform hover:scale-105"
-                disabled={!youtubeUrl || !audioFile}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-full"
+                disabled={!videoId || !idSoundCloud}
               >
                 <Play className="w-5 h-5 mr-2" />
                 Sync & Load Media
@@ -124,17 +151,23 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        {/* Media Player Section */}
+        {/* Media Players */}
         {isMediaLoaded && (
-          <MediaPlayer
-            videoId={videoId}
-            audioFile={audioFile}
-            audioRef={audioRef}
-            youtubeRef={youtubeRef}
-            videoMuted={videoMuted}
-            isPlaying={isPlaying}
-            setIsPlaying={setIsPlaying}
-          />
+          <>
+            <MediaPlayer
+              videoId={videoId}
+              youtubeRef={youtubeRef}
+              videoMuted={videoMuted}
+              isPlaying={isPlaying}
+              setIsPlaying={setIsPlaying}
+            />
+            <SoundCloudPlayer
+              idSoundCloud={idSoundCloud}
+              isPlaying={isPlaying}
+              setIsPlaying={setIsPlaying}
+              audioOffset={audioOffset}
+            />
+          </>
         )}
 
         {/* Controls Panel */}
@@ -161,6 +194,16 @@ const Index = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Project Manager Section */}
+        <ProjectManager
+          videoId={videoId}
+          audioFile={audioFile}
+          onLoadProject={handleLoadProject}
+          currentVideoId={videoId}
+        />
+
+        {/* <BabyElephantWalkPlayer idSoundCloud={idSoundCloud} /> */}
       </div>
     </div>
   );

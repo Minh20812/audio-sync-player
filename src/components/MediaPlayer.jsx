@@ -30,6 +30,10 @@ const MediaPlayer = ({
           modestbranding: 1,
         },
         events: {
+          onReady: (event) => {
+            // Set initial volume to 75%
+            event.target.setVolume(75);
+          },
           onStateChange: (event) => {
             if (event.data === window.YT.PlayerState.PLAYING) {
               setIsPlaying(true);
@@ -71,7 +75,7 @@ const MediaPlayer = ({
           </div>
 
           {/* Audio Player */}
-          <div className="space-y-4">
+          {/* <div className="space-y-4">
             <h3 className="text-white font-semibold text-lg">External Audio</h3>
             <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-lg p-6 border border-white/10">
               <audio
@@ -88,7 +92,7 @@ const MediaPlayer = ({
                 <p className="text-gray-300 text-sm">{audioFile?.name}</p>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </CardContent>
     </Card>
