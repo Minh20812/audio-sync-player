@@ -12,6 +12,7 @@ import ControlsPanel from "@/components/ControlsPanel";
 import ProjectManager from "@/components/ProjectManager";
 // import BabyElephantWalkPlayer from "@/components/SoundCloudPlayer";
 import SoundCloudPlayer from "@/components/SoundCloudPlayer";
+import { extractSoundCloudTrackId } from "@/utils/soundcloud";
 
 const Index = () => {
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -45,6 +46,13 @@ const Index = () => {
     // Simple validation for video ID format
     if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
       toast.error("Please enter a valid YouTube video ID");
+      return;
+    }
+
+    // Validate SoundCloud ID
+    const soundCloudTrackId = extractSoundCloudTrackId(idSoundCloud);
+    if (!soundCloudTrackId) {
+      toast.error("Invalid SoundCloud track ID");
       return;
     }
 
