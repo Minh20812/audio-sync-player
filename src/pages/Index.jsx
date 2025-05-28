@@ -6,12 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Play, Music } from "lucide-react";
 import { toast } from "sonner";
 import VideoUploader from "@/components/VideoUploader";
-import AudioUploader from "@/components/AudioUploader";
 import MediaPlayer from "@/components/MediaPlayer";
 import ControlsPanel from "@/components/ControlsPanel";
-import ProjectManager from "@/components/ProjectManager";
-// import BabyElephantWalkPlayer from "@/components/SoundCloudPlayer";
 import SoundCloudPlayer from "@/components/SoundCloudPlayer";
+import ArchivePlayer from "@/components/ArchivePlayer";
 import { extractSoundCloudTrackId } from "@/utils/soundcloud";
 
 const Index = () => {
@@ -24,6 +22,9 @@ const Index = () => {
   const [isMediaLoaded, setIsMediaLoaded] = useState(false);
   const [soundCloudUrl, setSoundCloudUrl] = useState("");
   const [idSoundCloud, setIdSoundCloud] = useState("");
+  const [idArchive, setIdArchive] = useState("");
+  const [filenameArchive, setFilenameArchive] = useState("");
+  const [audioSource, setAudioSource] = useState("soundcloud");
   const audioRef = useRef(null);
   const youtubeRef = useRef(null);
 
@@ -36,28 +37,34 @@ const Index = () => {
   };
 
   const handleSyncAndPlay = () => {
-    if (!videoId || !idSoundCloud) {
-      toast.info(
-        "Please provide both YouTube Video ID and SoundCloud Track ID"
-      );
+    if (!videoId) {
+      toast.info("Please provide a YouTube Video ID");
       return;
     }
 
-    // Simple validation for video ID format
-    if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-      toast.error("Please enter a valid YouTube video ID");
-      return;
-    }
-
-    // Validate SoundCloud ID
-    const soundCloudTrackId = extractSoundCloudTrackId(idSoundCloud);
-    if (!soundCloudTrackId) {
-      toast.error("Invalid SoundCloud track ID");
-      return;
+    if (audioSource === "soundcloud") {
+      if (!idSoundCloud) {
+        toast.info("Please provide a SoundCloud Track ID");
+        return;
+      }
+      const soundCloudTrackId = extractSoundCloudTrackId(idSoundCloud);
+      if (!soundCloudTrackId) {
+        toast.error("Invalid SoundCloud track ID");
+        return;
+      }
+    } else {
+      if (!idArchive) {
+        toast.info("Please provide both Archive ID and filename");
+        return;
+      }
     }
 
     setIsMediaLoaded(true);
-    toast.success("YouTube video and SoundCloud track are ready to play!");
+    toast.success(
+      `YouTube video and ${
+        audioSource === "soundcloud" ? "SoundCloud" : "Archive"
+      } audio are ready to play!`
+    );
   };
 
   // Update togglePlayPause function
@@ -80,13 +87,9 @@ const Index = () => {
   };
 
   // Handle loading project from ProjectManager
-  const handleLoadProject = ({
-    youtubeUrl: url,
-    videoId: id,
-    audioFileName,
-  }) => {
-    setYoutubeUrl(url);
-    setVideoId(id);
+  const handleLoadProject = ({ youtubeUrl, videoId, audioFileName }) => {
+    setYoutubeUrl(youtubeUrl);
+    setVideoId(videoId);
     setIsMediaLoaded(true);
     // Note: In real implementation, you'd fetch the audio file from Supabase Storage
     toast.info(`Project loaded! Audio file: ${audioFileName}`);
@@ -127,22 +130,77 @@ const Index = () => {
           <CardContent className="p-6">
             <div className="grid lg:grid-cols-2 gap-6">
               <VideoUploader videoId={videoId} setVideoId={setVideoId} />
+
+              {/* Audio Source Selector */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <Music className="w-5 h-5 text-purple-400" />
-                  <Label className="text-white font-medium">
-                    SoundCloud Track ID
-                  </Label>
+                  <Label className="text-white font-medium">Audio Source</Label>
                 </div>
-                <Input
-                  id="idSoundCloud"
-                  type="text"
-                  placeholder="Enter SoundCloud track ID"
-                  value={idSoundCloud}
-                  onChange={(e) => setIdSoundCloud(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white"
-                />
+                <div className="flex gap-2">
+                  <Button
+                    variant={
+                      audioSource === "soundcloud" ? "default" : "outline"
+                    }
+                    onClick={() => setAudioSource("soundcloud")}
+                    className={
+                      audioSource === "soundcloud"
+                        ? "bg-purple-600"
+                        : "border-white/20 text-white"
+                    }
+                  >
+                    SoundCloud
+                  </Button>
+                  <Button
+                    variant={audioSource === "archive" ? "default" : "outline"}
+                    onClick={() => setAudioSource("archive")}
+                    className={
+                      audioSource === "archive"
+                        ? "bg-purple-600"
+                        : "border-white/20 text-white"
+                    }
+                  >
+                    Archive.org
+                  </Button>
+                </div>
               </div>
+
+              {/* Conditional Audio Source Inputs */}
+              {audioSource === "soundcloud" ? (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Music className="w-5 h-5 text-purple-400" />
+                    <Label className="text-white font-medium">
+                      SoundCloud Track ID
+                    </Label>
+                  </div>
+                  <Input
+                    id="idSoundCloud"
+                    type="text"
+                    placeholder="Enter SoundCloud track ID"
+                    value={idSoundCloud || ""}
+                    onChange={(e) => setIdSoundCloud(e.target.value)}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Music className="w-5 h-5 text-purple-400" />
+                    <Label className="text-white font-medium">
+                      Archive Audio
+                    </Label>
+                  </div>
+                  <Input
+                    id="idArchive"
+                    type="text"
+                    placeholder="Enter Archive audio ID (e.g., 2_20250527_20250527_0344)"
+                    value={idArchive || ""}
+                    onChange={(e) => setIdArchive(e.target.value)}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex justify-center mt-6">
@@ -150,7 +208,10 @@ const Index = () => {
                 onClick={handleSyncAndPlay}
                 size="lg"
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-full"
-                disabled={!videoId || !idSoundCloud}
+                disabled={
+                  !videoId ||
+                  (audioSource === "soundcloud" ? !idSoundCloud : !idArchive)
+                }
               >
                 <Play className="w-5 h-5 mr-2" />
                 Sync & Load Media
@@ -169,12 +230,21 @@ const Index = () => {
               isPlaying={isPlaying}
               setIsPlaying={setIsPlaying}
             />
-            <SoundCloudPlayer
-              idSoundCloud={idSoundCloud}
-              isPlaying={isPlaying}
-              setIsPlaying={setIsPlaying}
-              audioOffset={audioOffset}
-            />
+            {audioSource === "soundcloud" ? (
+              <SoundCloudPlayer
+                idSoundCloud={idSoundCloud}
+                isPlaying={isPlaying}
+                setIsPlaying={setIsPlaying}
+                audioOffset={audioOffset}
+              />
+            ) : (
+              <ArchivePlayer
+                archiveId={idArchive}
+                isPlaying={isPlaying}
+                setIsPlaying={setIsPlaying}
+                audioOffset={audioOffset}
+              />
+            )}
           </>
         )}
 
@@ -202,16 +272,6 @@ const Index = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Project Manager Section */}
-        <ProjectManager
-          videoId={videoId}
-          audioFile={audioFile}
-          onLoadProject={handleLoadProject}
-          currentVideoId={videoId}
-        />
-
-        {/* <BabyElephantWalkPlayer idSoundCloud={idSoundCloud} /> */}
       </div>
     </div>
   );

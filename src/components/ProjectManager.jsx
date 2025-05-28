@@ -141,10 +141,11 @@ const ProjectManager = ({
   };
 
   // Load project
+  // Fix the loadProject function to use proper object keys
   const loadProject = (project) => {
     onLoadProject({
-      videoId: project.youtube_url,
-      videoId: project.video_id,
+      youtubeUrl: project.youtube_url, // Changed from videoId
+      videoId: project.video_id, // Keep this one
       audioFileName: project.audio_filename,
     });
     toast.success(`Loaded project: ${project.name}`);
