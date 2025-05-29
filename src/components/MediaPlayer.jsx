@@ -28,11 +28,17 @@ const MediaPlayer = ({
           controls: 1,
           rel: 0,
           modestbranding: 1,
+          cc_load_policy: 1, // Force closed captions to display
+          cc_lang_pref: "en", // Prefer English captions
+          hl: "en", // Set interface language to English
         },
         events: {
           onReady: (event) => {
             // Set initial volume to 15%
             event.target.setVolume(15);
+            // Enable captions if available
+            event.target.loadModule("captions");
+            event.target.loadModule("cc");
           },
           onStateChange: (event) => {
             if (event.data === window.YT.PlayerState.PLAYING) {
