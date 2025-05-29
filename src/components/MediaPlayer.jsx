@@ -31,8 +31,8 @@ const MediaPlayer = ({
         },
         events: {
           onReady: (event) => {
-            // Set initial volume to 75%
-            event.target.setVolume(75);
+            // Set initial volume to 15%
+            event.target.setVolume(15);
           },
           onStateChange: (event) => {
             if (event.data === window.YT.PlayerState.PLAYING) {

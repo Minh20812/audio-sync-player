@@ -4,9 +4,7 @@ import { extractArchiveFilename } from "@/utils/archive";
 
 const ArchivePlayer = ({ archiveId, isPlaying, setIsPlaying, audioOffset }) => {
   const audioRef = useRef(null);
-  const filename = extractArchiveFilename(archiveId);
 
-  // Handle play/pause sync with YouTube
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -32,7 +30,7 @@ const ArchivePlayer = ({ archiveId, isPlaying, setIsPlaying, audioOffset }) => {
           onPause={() => setIsPlaying(false)}
         >
           <source
-            src={`https://archive.org/download/${archiveId}/${filename}.mp3`}
+            src={`https://archive.org/download/${archiveId}/${archiveId}.mp3`}
             type="audio/mpeg"
           />
           Your browser does not support the audio element.
