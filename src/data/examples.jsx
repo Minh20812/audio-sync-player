@@ -9,5 +9,10 @@ export const exampleVideos = [
     title: "The Hole In Relativity Einstein Didn’t Predict",
     description: "Veritasium",
   },
+  {
+    id: "Q56PMJbCFXQ",
+    title: "A Video On YouTube That Will Make You Smarter",
+    description: "Nguyen Quang Minh",
+  },
   // Add more examples as needed
 ];
