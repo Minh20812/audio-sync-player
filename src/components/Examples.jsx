@@ -1,16 +1,46 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Youtube, Music } from "lucide-react";
+import { Play, Youtube, Music, ChevronDown, ChevronUp } from "lucide-react";
 import { exampleVideos } from "@/data/examples";
 
 const Examples = ({ onSelectExample }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
+
+  // Calculate total pages
+  const totalPages = Math.ceil(exampleVideos.length / itemsPerPage);
+
+  // Get current items
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = exampleVideos.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Show all items when expanded
+  const displayedItems = isExpanded ? exampleVideos : currentItems;
+
   return (
     <Card className="bg-white/5 border-white/10">
       <CardContent className="p-4">
-        <h3 className="text-white font-medium mb-3">Try These Examples:</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-white font-medium">Try These Examples:</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-gray-400 hover:text-white"
+          >
+            {isExpanded ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+
         <div className="grid gap-3">
-          {exampleVideos.map((example) => (
+          {displayedItems.map((example) => (
             <div
               key={example.id}
               className="flex items-center justify-between bg-white/5 p-3 rounded-lg hover:bg-white/10 transition-colors"
@@ -40,6 +70,37 @@ const Examples = ({ onSelectExample }) => {
             </div>
           ))}
         </div>
+
+        {!isExpanded && totalPages > 1 && (
+          <div className="flex justify-center gap-2 mt-4">
+            {[...Array(totalPages)].map((_, index) => (
+              <Button
+                key={index}
+                size="sm"
+                variant={currentPage === index + 1 ? "default" : "outline"}
+                onClick={() => setCurrentPage(index + 1)}
+                className={
+                  currentPage === index + 1
+                    ? "bg-purple-600 hover:bg-purple-700"
+                    : "text-gray-400 hover:text-white"
+                }
+              >
+                {index + 1}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {!isExpanded && exampleVideos.length > itemsPerPage && (
+          <Button
+            variant="ghost"
+            className="w-full mt-4 text-gray-400 hover:text-white"
+            onClick={() => setIsExpanded(true)}
+          >
+            Show All ({exampleVideos.length} examples)
+            <ChevronDown className="w-4 h-4 ml-2" />
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

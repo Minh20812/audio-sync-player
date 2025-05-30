@@ -31,6 +31,7 @@ const MediaPlayer = ({
           cc_load_policy: 1, // Force closed captions to display
           cc_lang_pref: "en", // Prefer English captions
           hl: "en", // Set interface language to English
+          vq: "medium", // Set default quality to 480p
         },
         events: {
           onReady: (event) => {
@@ -39,10 +40,14 @@ const MediaPlayer = ({
             // Enable captions if available
             event.target.loadModule("captions");
             event.target.loadModule("cc");
+            // Force 480p quality
+            event.target.setPlaybackQuality("medium");
           },
           onStateChange: (event) => {
             if (event.data === window.YT.PlayerState.PLAYING) {
               setIsPlaying(true);
+              // Ensure 480p quality is maintained
+              event.target.setPlaybackQuality("medium");
             } else if (event.data === window.YT.PlayerState.PAUSED) {
               setIsPlaying(false);
             }
