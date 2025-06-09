@@ -29,11 +29,6 @@ export const exampleVideos = [
     title: "A Video On YouTube That Will Make You Smarter",
     description: "Nguyen Quang Minh",
   },
-  {
-    id: "dJoBnnCTP5M",
-    title: "A Video On YouTube That Will Make You Smarter",
-    description: "Nguyen Quang Minh",
-  },
 
   // Add more examples as needed
 ];

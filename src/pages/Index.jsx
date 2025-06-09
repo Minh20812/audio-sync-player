@@ -1,22 +1,16 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Play, Music } from "lucide-react";
 import { toast } from "sonner";
 import VideoUploader from "@/components/VideoUploader";
-import MediaPlayer from "@/components/MediaPlayer";
-import ControlsPanel from "@/components/ControlsPanel";
-import ArchivePlayer from "@/components/ArchivePlayer";
+import MediaSyncPlayer from "@/components/MediaSyncPlayer";
 import Examples from "@/components/Examples";
 
 const Index = () => {
   const [videoId, setVideoId] = useState("");
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [videoMuted, setVideoMuted] = useState(false);
-  const [audioOffset, setAudioOffset] = useState(0);
   const [isMediaLoaded, setIsMediaLoaded] = useState(false);
-  const youtubeRef = useRef(null);
 
   const handleSyncAndPlay = () => {
     if (!videoId) {
@@ -25,40 +19,25 @@ const Index = () => {
     }
 
     setIsMediaLoaded(true);
-    toast.success("YouTube video and Archive audio are ready to play!");
+    toast.success("Media loaded successfully!");
   };
 
   const handleSelectExample = (exampleId) => {
     setVideoId(exampleId);
-    setAudioSource("archive"); // Since examples use Archive.org
-    toast.success("Example loaded! Click 'Sync & Load Media' to start");
-  };
+    setIsMediaLoaded(true); // Immediately load media
 
-  const togglePlayPause = () => {
-    if (!isMediaLoaded) return;
-    const newPlayingState = !isPlaying;
-    setIsPlaying(newPlayingState);
-
-    if (youtubeRef.current) {
-      if (newPlayingState) {
-        youtubeRef.current.playVideo();
-      } else {
-        youtubeRef.current.pauseVideo();
+    // Give time for MediaSyncPlayer to mount before requesting fullscreen
+    setTimeout(() => {
+      const videoContainer = document.querySelector(
+        "[data-fullscreen-container]"
+      );
+      if (videoContainer && document.fullscreenEnabled) {
+        videoContainer.requestFullscreen().catch((err) => {
+          console.error("Error attempting to enable fullscreen:", err);
+        });
       }
-    }
+    }, 1000); // Wait 1 second for component to mount and initialize
   };
-
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (e.code === "Space" && e.target === document.body) {
-        e.preventDefault();
-        togglePlayPause();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyPress);
-    return () => document.removeEventListener("keydown", handleKeyPress);
-  }, [isPlaying, isMediaLoaded]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-4">
@@ -103,46 +82,7 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        {isMediaLoaded && (
-          <>
-            <MediaPlayer
-              videoId={videoId}
-              youtubeRef={youtubeRef}
-              videoMuted={videoMuted}
-              isPlaying={isPlaying}
-              setIsPlaying={setIsPlaying}
-            />
-            <ArchivePlayer
-              archiveId={videoId}
-              isPlaying={isPlaying}
-              setIsPlaying={setIsPlaying}
-              audioOffset={audioOffset}
-            />
-          </>
-        )}
-
-        {isMediaLoaded && (
-          <ControlsPanel
-            isPlaying={isPlaying}
-            togglePlayPause={togglePlayPause}
-            videoMuted={videoMuted}
-            setVideoMuted={setVideoMuted}
-            audioOffset={audioOffset}
-            setAudioOffset={setAudioOffset}
-            youtubeRef={youtubeRef}
-          />
-        )}
-
-        <Card className="bg-white/5 backdrop-blur-md border-white/10">
-          <CardContent className="p-4">
-            <div className="text-center text-gray-300">
-              <p className="text-sm">
-                <span className="font-semibold">Keyboard Shortcuts:</span>
-                <span className="ml-2">Spacebar - Play/Pause both media</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        {isMediaLoaded && <MediaSyncPlayer videoId={videoId} />}
 
         <Examples onSelectExample={handleSelectExample} />
       </div>

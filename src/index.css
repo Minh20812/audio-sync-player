@@ -172,3 +172,11 @@
     @apply border-2 border-brown text-brown hover:bg-brown/10 px-6 py-3 rounded-lg font-medium transition-colors;
   }
 }
+
+.fullscreen-hidden {
+  display: block;
+}
+
+:fullscreen .fullscreen-hidden {
+  display: none;
+}
