@@ -64,14 +64,28 @@ const MediaSyncPlayer = ({ videoId }) => {
           onStateChange: (event) => {
             if (event.data === window.YT.PlayerState.PLAYING) {
               setIsPlaying(true);
+              // Hide controls after 3 seconds when playing in fullscreen
+              if (isFullscreen && fullscreenTimeoutRef.current) {
+                fullscreenTimeoutRef.current = setTimeout(() => {
+                  setShowFullscreenControls(false);
+                }, 3000);
+              }
             } else if (event.data === window.YT.PlayerState.PAUSED) {
               setIsPlaying(false);
+              // Show controls when paused in fullscreen
+              if (isFullscreen) {
+                setShowFullscreenControls(true);
+                // Clear any existing timeout
+                if (fullscreenTimeoutRef.current) {
+                  clearTimeout(fullscreenTimeoutRef.current);
+                }
+              }
             }
           },
         },
       });
     }
-  }, [videoId, isYouTubeReady]);
+  }, [videoId, isYouTubeReady, isFullscreen]);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -274,10 +288,26 @@ const MediaSyncPlayer = ({ videoId }) => {
       youtubePlayerRef.current.pauseVideo();
       audioRef.current.pause();
       setIsPlaying(false);
+      // Show controls when manually paused in fullscreen
+      if (isFullscreen) {
+        setShowFullscreenControls(true);
+        if (fullscreenTimeoutRef.current) {
+          clearTimeout(fullscreenTimeoutRef.current);
+        }
+      }
     } else {
       youtubePlayerRef.current.playVideo();
       audioRef.current.play();
       setIsPlaying(true);
+      // Start hide timer when playing in fullscreen
+      if (isFullscreen) {
+        if (fullscreenTimeoutRef.current) {
+          clearTimeout(fullscreenTimeoutRef.current);
+        }
+        fullscreenTimeoutRef.current = setTimeout(() => {
+          setShowFullscreenControls(false);
+        }, 3000);
+      }
     }
   };
 
