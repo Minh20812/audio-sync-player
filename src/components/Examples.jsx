@@ -1,33 +1,56 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Youtube, Music, ChevronDown, ChevronUp } from "lucide-react";
-import { parseVideoUrls } from "@/utils/videoUtils";
+import {
+  parseVideoUrlsFromDrive,
+  fetchVideosFromFirestore,
+  clearFirestoreVideos,
+} from "@/utils/videoUtils";
 
 const Examples = ({ onSelectExample }) => {
   const [videos, setVideos] = useState([]);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 3;
+  const [addedCount, setAddedCount] = useState(0); // State để lưu số lượng dữ liệu đã thêm
+  const itemsPerPage = 4; // Số lượng video hiển thị mỗi trang
 
   useEffect(() => {
     const loadVideos = async () => {
-      const videoList = await parseVideoUrls();
+      const videoList = await fetchVideosFromFirestore();
       setVideos(videoList);
     };
     loadVideos();
   }, []);
 
-  // Calculate total pages
-  const totalPages = Math.ceil(videos.length / itemsPerPage);
+  const handleUpdateLinks = async () => {
+    try {
+      // Xóa toàn bộ dữ liệu trong Firestore
+      await clearFirestoreVideos();
 
-  // Get current items
+      // Fetch dữ liệu mới từ Google Drive
+      const { validVideos, addedCount } = await parseVideoUrlsFromDrive();
+      setVideos(validVideos);
+      setAddedCount(addedCount);
+    } catch (error) {
+      console.error("Error updating links:", error);
+    }
+  };
+
+  const totalPages = Math.ceil(videos.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = videos.slice(indexOfFirstItem, indexOfLastItem);
 
-  // Show all items when expanded
-  const displayedItems = isExpanded ? videos : currentItems;
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
 
   return (
     <Card className="bg-white/5 border-white/10">
@@ -35,21 +58,23 @@ const Examples = ({ onSelectExample }) => {
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-white font-medium">Try These Examples:</h3>
           <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-gray-400 hover:text-white"
+            variant="outline"
+            onClick={handleUpdateLinks}
+            className="bg-red-600 hover:bg-red-700 text-white"
           >
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
+            Cập nhật link mới
           </Button>
         </div>
 
+        {/* Hiển thị thông báo số lượng dữ liệu đã thêm */}
+        {addedCount > 0 && (
+          <p className="text-sm text-green-500 mb-3">
+            Đã lưu {addedCount} video mới từ Google Drive vào Firestore.
+          </p>
+        )}
+
         <div className="grid gap-3">
-          {displayedItems.map((video) => (
+          {currentItems.map((video) => (
             <div
               key={video.id}
               className="flex items-center justify-between bg-white/5 p-3 rounded-lg hover:bg-white/10 transition-colors"
@@ -60,10 +85,8 @@ const Examples = ({ onSelectExample }) => {
                   alt={`Thumbnail for ${video.id}`}
                   className="w-16 h-16 rounded-lg object-cover"
                 />
-
                 <div className="space-y-1">
                   <h4 className="text-white font-medium">{video.title}</h4>
-
                   <p className="text-sm text-gray-400">{video.channel}</p>
                 </div>
               </div>
@@ -72,32 +95,34 @@ const Examples = ({ onSelectExample }) => {
                 onClick={() => onSelectExample(video.id)}
                 className="bg-purple-600 hover:bg-purple-700"
               >
-                <Play className="w-4 h-4 mr-2" />
                 Play Now
               </Button>
             </div>
           ))}
         </div>
 
-        {!isExpanded && totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-4">
-            {[...Array(totalPages)].map((_, index) => (
-              <Button
-                key={index}
-                size="sm"
-                variant={currentPage === index + 1 ? "default" : "outline"}
-                onClick={() => setCurrentPage(index + 1)}
-                className={
-                  currentPage === index + 1
-                    ? "bg-purple-600 hover:bg-purple-700"
-                    : "text-gray-400 hover:text-white"
-                }
-              >
-                {index + 1}
-              </Button>
-            ))}
-          </div>
-        )}
+        {/* Nút chuyển trang */}
+        <div className="flex justify-between mt-4">
+          <Button
+            variant="outline"
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className="text-gray-400 hover:text-white"
+          >
+            Previous
+          </Button>
+          <span className="text-white">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className="text-gray-400 hover:text-white"
+          >
+            Next
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
