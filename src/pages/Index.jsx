@@ -55,7 +55,7 @@ const Index = () => {
 
         {isMediaLoaded && <MediaSyncPlayer videoId={videoId} />}
 
-        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+        {/* <Card className="bg-white/10 backdrop-blur-md border-white/20">
           <CardContent className="p-6">
             <div className="grid lg:grid-cols-2 gap-6">
               <VideoUploader videoId={videoId} setVideoId={setVideoId} />
@@ -84,7 +84,7 @@ const Index = () => {
               </Button>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
