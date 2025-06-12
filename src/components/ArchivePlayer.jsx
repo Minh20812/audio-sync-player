@@ -1,9 +1,11 @@
 import React, { useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { extractArchiveFilename } from "@/utils/archive";
+import { formatArchiveId } from "@/utils/archive";
 
 const ArchivePlayer = ({ archiveId, isPlaying, setIsPlaying, audioOffset }) => {
   const audioRef = useRef(null);
+  const formattedArchiveId = formatArchiveId(archiveId); // Định dạng archiveId
+  const archiveUrl = `https://archive.org/download/${formattedArchiveId}/${archiveId}.mp3`;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -29,10 +31,7 @@ const ArchivePlayer = ({ archiveId, isPlaying, setIsPlaying, audioOffset }) => {
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
         >
-          <source
-            src={`https://archive.org/download/${archiveId}/${archiveId}.mp3`}
-            type="audio/mpeg"
-          />
+          <source src={archiveUrl} type="audio/mpeg" />
           Your browser does not support the audio element.
         </audio>
       </CardContent>

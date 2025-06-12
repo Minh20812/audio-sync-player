@@ -6,6 +6,7 @@ import {
   doc,
 } from "firebase/firestore";
 import db from "@/utils/firebaseConfig";
+import { formatArchiveId } from "@/utils/archive";
 
 export const getYouTubeVideoId = (url) => {
   const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/;
@@ -99,7 +100,11 @@ export const parseVideoUrlsFromDrive = async () => {
       )
     ).filter((id) => id);
 
-    const videoInfoPromises = urls.map((id) => fetchVideoInfo(id));
+    const videoInfoPromises = urls.map((id) => {
+      const archiveId = formatArchiveId(id); // Định dạng archiveId
+      const archiveUrl = `https://archive.org/download/${archiveId}/${id}.mp3`;
+      return fetchVideoInfo(id, archiveUrl);
+    });
     const videoInfoResults = await Promise.all(videoInfoPromises);
 
     const validVideos = videoInfoResults.filter((info) => info);

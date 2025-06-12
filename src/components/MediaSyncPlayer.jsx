@@ -11,7 +11,7 @@ import {
   Minimize,
 } from "lucide-react";
 import PlayerControls from "./PlayerControl";
-import { getYouTubeVideoId } from "@/utils/youtubeUtils";
+import { formatArchiveId } from "@/utils/archive";
 
 const MediaSyncPlayer = ({ videoId }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -29,7 +29,9 @@ const MediaSyncPlayer = ({ videoId }) => {
   const [youtubeReady, setYoutubeReady] = useState(false);
   const [isYouTubeReady, setIsYouTubeReady] = useState(false);
 
-  const audioUrl = `https://archive.org/download/${videoId}/${videoId}.mp3`;
+  const formattedArchiveId = formatArchiveId(videoId);
+
+  const audioUrl = `https://archive.org/download/${formattedArchiveId}/${videoId}.mp3`;
   const youtubeUrl = `https://youtube.com/watch?v=${videoId}`;
 
   useEffect(() => {
