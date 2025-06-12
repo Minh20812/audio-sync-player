@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { RefreshCcw, Loader } from "lucide-react";
+import { toast } from "sonner";
 import {
   parseVideoUrlsFromDrive,
   fetchVideosFromFirestore,
@@ -12,6 +14,7 @@ const Examples = ({ onSelectExample }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [addedCount, setAddedCount] = useState(0); // State để lưu số lượng dữ liệu đã thêm
   const itemsPerPage = 4; // Số lượng video hiển thị mỗi trang
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const loadVideos = async () => {
@@ -23,15 +26,17 @@ const Examples = ({ onSelectExample }) => {
 
   const handleUpdateLinks = async () => {
     try {
-      // Xóa toàn bộ dữ liệu trong Firestore
+      setIsLoading(true);
       await clearFirestoreVideos();
-
-      // Fetch dữ liệu mới từ Google Drive
       const { validVideos, addedCount } = await parseVideoUrlsFromDrive();
       setVideos(validVideos);
       setAddedCount(addedCount);
+      toast.success(`Đã lưu ${addedCount} video mới vào Firestore!`);
     } catch (error) {
       console.error("Error updating links:", error);
+      toast.error("Có lỗi xảy ra khi cập nhật link mới!");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -55,14 +60,22 @@ const Examples = ({ onSelectExample }) => {
   return (
     <Card className="bg-white/5 border-white/10">
       <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-6">
           <h3 className="text-white font-medium">Try These Examples:</h3>
           <Button
-            variant="outline"
+            variant="solid"
             onClick={handleUpdateLinks}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            disabled={isLoading}
+            className={`bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
+              isLoading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
           >
-            Cập nhật link mới
+            {isLoading ? (
+              <Loader className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="w-4 h-4" />
+            )}
+            {isLoading ? "Đang cập nhật..." : "Cập nhật link mới"}
           </Button>
         </div>
 
