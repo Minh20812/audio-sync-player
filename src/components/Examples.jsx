@@ -57,6 +57,10 @@ const Examples = ({ onSelectExample }) => {
     }
   };
 
+  const handleSelectExample = (videoId) => {
+    onSelectExample(videoId);
+  };
+
   return (
     <Card className="bg-white/5 border-white/10">
       <CardContent className="p-4">
@@ -105,7 +109,7 @@ const Examples = ({ onSelectExample }) => {
               </div>
               <Button
                 size="sm"
-                onClick={() => onSelectExample(video.id)}
+                onClick={() => handleSelectExample(video.id)}
                 className="bg-purple-600 hover:bg-purple-700"
               >
                 Play Now
