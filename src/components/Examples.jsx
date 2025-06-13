@@ -12,8 +12,8 @@ import {
 const Examples = ({ onSelectExample }) => {
   const [videos, setVideos] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [addedCount, setAddedCount] = useState(0); // State để lưu số lượng dữ liệu đã thêm
-  const itemsPerPage = 4; // Số lượng video hiển thị mỗi trang
+  const [addedCount, setAddedCount] = useState(0);
+  const itemsPerPage = 4;
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -63,21 +63,23 @@ const Examples = ({ onSelectExample }) => {
 
   return (
     <Card className="bg-white/5 border-white/10">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-white font-medium">Try These Examples:</h3>
+      <CardContent className="p-3 sm:p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+          <h3 className="text-white font-medium text-sm sm:text-base">
+            Try These Examples:
+          </h3>
           <Button
             variant="solid"
             onClick={handleUpdateLinks}
             disabled={isLoading}
-            className={`bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
+            className={`bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-all duration-300 text-xs sm:text-sm w-full sm:w-auto justify-center ${
               isLoading ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
             {isLoading ? (
-              <Loader className="w-4 h-4 animate-spin" />
+              <Loader className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
             ) : (
-              <RefreshCcw className="w-4 h-4" />
+              <RefreshCcw className="w-3 h-3 sm:w-4 sm:h-4" />
             )}
             {isLoading ? "Đang cập nhật..." : "Cập nhật link mới"}
           </Button>
@@ -85,32 +87,36 @@ const Examples = ({ onSelectExample }) => {
 
         {/* Hiển thị thông báo số lượng dữ liệu đã thêm */}
         {addedCount > 0 && (
-          <p className="text-sm text-green-500 mb-3">
+          <p className="text-xs sm:text-sm text-green-500 mb-3">
             Đã lưu {addedCount} video mới từ Google Drive vào Firestore.
           </p>
         )}
 
-        <div className="grid gap-3">
+        <div className="grid gap-2 sm:gap-3">
           {currentItems.map((video) => (
             <div
               key={video.id}
-              className="flex items-center justify-between bg-white/5 p-3 rounded-lg hover:bg-white/10 transition-colors"
+              className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white/5 p-3 rounded-lg hover:bg-white/10 transition-colors"
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 w-full sm:flex-1">
                 <img
                   src={video.thumbnail}
                   alt={`Thumbnail for ${video.id}`}
-                  className="w-16 h-16 rounded-lg object-cover"
+                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0"
                 />
-                <div className="space-y-1">
-                  <h4 className="text-white font-medium">{video.title}</h4>
-                  <p className="text-sm text-gray-400">{video.channel}</p>
+                <div className="space-y-1 min-w-0 flex-1">
+                  <h4 className="text-white font-medium text-sm sm:text-base line-clamp-2 break-words">
+                    {video.title}
+                  </h4>
+                  <p className="text-xs sm:text-sm text-gray-400 truncate">
+                    {video.channel}
+                  </p>
                 </div>
               </div>
               <Button
                 size="sm"
                 onClick={() => handleSelectExample(video.id)}
-                className="bg-purple-600 hover:bg-purple-700"
+                className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
               >
                 Play Now
               </Button>
@@ -119,23 +125,23 @@ const Examples = ({ onSelectExample }) => {
         </div>
 
         {/* Nút chuyển trang */}
-        <div className="flex justify-between mt-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
           <Button
             variant="outline"
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-white text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
           >
             Previous
           </Button>
-          <span className="text-white">
+          <span className="text-white text-xs sm:text-sm order-first sm:order-none">
             Page {currentPage} of {totalPages}
           </span>
           <Button
             variant="outline"
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-white text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
           >
             Next
           </Button>

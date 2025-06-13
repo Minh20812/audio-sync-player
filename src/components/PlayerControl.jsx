@@ -39,8 +39,8 @@ const PlayerControls = ({
   };
 
   return (
-    <Card className="p-6 bg-white/10 backdrop-blur-sm border-white/20">
-      <div className="space-y-6">
+    <Card className="p-3 sm:p-4 md:p-6 bg-white/10 backdrop-blur-sm border-white/20">
+      <div className="space-y-4 sm:space-y-6">
         {/* Progress Bar */}
         <div className="space-y-2">
           <Slider
@@ -50,31 +50,31 @@ const PlayerControls = ({
             onValueChange={(value) => onSeek(value[0])}
             className="w-full"
           />
-          <div className="flex justify-between text-sm text-gray-300">
+          <div className="flex justify-between text-xs sm:text-sm text-gray-300">
             <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
         </div>
 
         {/* Main Controls */}
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center gap-2 sm:gap-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={handleSkipBack}
-            className="text-white hover:bg-white/20 h-12 w-12"
+            className="text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
           >
-            <SkipBack className="w-6 h-6" />
+            <SkipBack className="w-4 h-4 sm:w-6 sm:h-6" />
           </Button>
 
           <Button
             onClick={onPlayPause}
-            className="h-16 w-16 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             {isPlaying ? (
-              <Pause className="w-8 h-8 text-white" />
+              <Pause className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             ) : (
-              <Play className="w-8 h-8 text-white ml-1" />
+              <Play className="w-6 h-6 sm:w-8 sm:h-8 text-white ml-0.5" />
             )}
           </Button>
 
@@ -82,51 +82,65 @@ const PlayerControls = ({
             variant="ghost"
             size="icon"
             onClick={handleSkipForward}
-            className="text-white hover:bg-white/20 h-12 w-12"
+            className="text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
           >
-            <SkipForward className="w-6 h-6" />
+            <SkipForward className="w-4 h-4 sm:w-6 sm:h-6" />
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
             onClick={onFullscreen}
-            className="text-white hover:bg-white/20 h-12 w-12"
+            className="text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
           >
-            <Maximize className="w-6 h-6" />
+            <Maximize className="w-4 h-4 sm:w-6 sm:h-6" />
           </Button>
         </div>
 
         {/* Volume Controls */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="flex items-center gap-3">
-            <Volume2 className="w-5 h-5 text-white" />
-            <span className="text-sm text-white min-w-[80px]">Video</span>
-            <Slider
-              value={[volume]}
-              max={1}
-              step={0.01}
-              onValueChange={(value) => onVolumeChange(value[0])}
-              className="flex-1"
-            />
-            <span className="text-sm text-gray-300 min-w-[40px]">
-              {Math.round(volume * 100)}%
-            </span>
+        <div className="space-y-4 sm:space-y-6">
+          {/* Video Volume */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-white flex-shrink-0" />
+              <span className="text-xs sm:text-sm text-white font-medium">
+                Video Volume
+              </span>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Slider
+                value={[volume]}
+                max={1}
+                step={0.01}
+                onValueChange={(value) => onVolumeChange(value[0])}
+                className="flex-1"
+              />
+              <span className="text-xs sm:text-sm text-gray-300 min-w-[35px] sm:min-w-[40px] text-right">
+                {Math.round(volume * 100)}%
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Headphones className="w-5 h-5 text-white" />
-            <span className="text-sm text-white min-w-[80px]">Audio</span>
-            <Slider
-              value={[audioVolume]}
-              max={1}
-              step={0.01}
-              onValueChange={(value) => onAudioVolumeChange(value[0])}
-              className="flex-1"
-            />
-            <span className="text-sm text-gray-300 min-w-[40px]">
-              {Math.round(audioVolume * 100)}%
-            </span>
+          {/* Audio Volume */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Headphones className="w-4 h-4 sm:w-5 sm:h-5 text-white flex-shrink-0" />
+              <span className="text-xs sm:text-sm text-white font-medium">
+                Audio Volume
+              </span>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Slider
+                value={[audioVolume]}
+                max={1}
+                step={0.01}
+                onValueChange={(value) => onAudioVolumeChange(value[0])}
+                className="flex-1"
+              />
+              <span className="text-xs sm:text-sm text-gray-300 min-w-[35px] sm:min-w-[40px] text-right">
+                {Math.round(audioVolume * 100)}%
+              </span>
+            </div>
           </div>
         </div>
       </div>

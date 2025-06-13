@@ -9,6 +9,7 @@ import {
   SkipForward,
   Volume2,
   Minimize,
+  Maximize,
 } from "lucide-react";
 import PlayerControls from "./PlayerControl";
 import { formatArchiveId, formatArchiveFilename } from "@/utils/archive";
@@ -17,10 +18,11 @@ const MediaSyncPlayer = ({ videoId }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.15); // 15% cho YouTube
+  const [volume, setVolume] = useState(0.15);
   const [audioVolume, setAudioVolume] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showFullscreenControls, setShowFullscreenControls] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const audioRef = useRef(null);
   const youtubePlayerRef = useRef(null);
@@ -34,6 +36,18 @@ const MediaSyncPlayer = ({ videoId }) => {
 
   const audioUrl = `https://archive.org/download/${formattedArchiveId}/${formattedArchiveFilename}`;
   const youtubeUrl = `https://youtube.com/watch?v=${videoId}`;
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     // Define YouTube API callback
@@ -55,19 +69,18 @@ const MediaSyncPlayer = ({ videoId }) => {
           cc_load_policy: 1,
           cc_lang_pref: "en",
           hl: "en",
-          vq: "medium",
+          vq: isMobile ? "small" : "medium", // Lower quality on mobile
         },
         events: {
           onReady: (event) => {
             event.target.setVolume(15);
             event.target.loadModule("captions");
             event.target.loadModule("cc");
-            event.target.setPlaybackQuality("medium");
+            event.target.setPlaybackQuality(isMobile ? "small" : "medium");
           },
           onStateChange: (event) => {
             if (event.data === window.YT.PlayerState.PLAYING) {
               setIsPlaying(true);
-              // Hide controls after 3 seconds when playing in fullscreen
               if (isFullscreen && fullscreenTimeoutRef.current) {
                 fullscreenTimeoutRef.current = setTimeout(() => {
                   setShowFullscreenControls(false);
@@ -75,10 +88,8 @@ const MediaSyncPlayer = ({ videoId }) => {
               }
             } else if (event.data === window.YT.PlayerState.PAUSED) {
               setIsPlaying(false);
-              // Show controls when paused in fullscreen
               if (isFullscreen) {
                 setShowFullscreenControls(true);
-                // Clear any existing timeout
                 if (fullscreenTimeoutRef.current) {
                   clearTimeout(fullscreenTimeoutRef.current);
                 }
@@ -88,7 +99,7 @@ const MediaSyncPlayer = ({ videoId }) => {
         },
       });
     }
-  }, [videoId, isYouTubeReady, isFullscreen]);
+  }, [videoId, isYouTubeReady, isFullscreen, isMobile]);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -109,25 +120,22 @@ const MediaSyncPlayer = ({ videoId }) => {
           fs: 0,
           modestbranding: 1,
           rel: 0,
-          cc_load_policy: 1, // Hiển thị phụ đề
-          cc_lang_pref: "en", // Ưu tiên tiếng Anh
-          hl: "en", // Ngôn ngữ giao diện
+          cc_load_policy: 1,
+          cc_lang_pref: "en",
+          hl: "en",
         },
         events: {
           onReady: () => {
             setYoutubeReady(true);
-            // Đặt âm lượng mặc định 15% khi player sẵn sàng
             if (youtubePlayerRef.current) {
               youtubePlayerRef.current.setVolume(15);
 
-              // Bật phụ đề tiếng Anh
               try {
                 const tracks = youtubePlayerRef.current.getOption(
                   "captions",
                   "tracklist"
                 );
                 if (tracks && tracks.length > 0) {
-                  // Tìm track tiếng Anh
                   const englishTrack = tracks.find(
                     (track) =>
                       track.languageCode === "en" ||
@@ -142,7 +150,6 @@ const MediaSyncPlayer = ({ videoId }) => {
                       englishTrack
                     );
                   } else if (tracks.length > 0) {
-                    // Nếu không có tiếng Anh, dùng track đầu tiên
                     youtubePlayerRef.current.setOption(
                       "captions",
                       "track",
@@ -151,7 +158,6 @@ const MediaSyncPlayer = ({ videoId }) => {
                   }
                 }
 
-                // Hiển thị phụ đề
                 youtubePlayerRef.current.setOption(
                   "captions",
                   "displaySettings",
@@ -160,7 +166,7 @@ const MediaSyncPlayer = ({ videoId }) => {
                     backgroundOpacity: 0.75,
                     color: "#FFFFFF",
                     fontFamily: "Arial",
-                    fontSize: 1,
+                    fontSize: isMobile ? 0.8 : 1, // Smaller font on mobile
                   }
                 );
               } catch (error) {
@@ -191,7 +197,7 @@ const MediaSyncPlayer = ({ videoId }) => {
     return () => {
       document.body.removeChild(script);
     };
-  }, []);
+  }, [isMobile]);
 
   // Sync time updates
   useEffect(() => {
@@ -203,7 +209,6 @@ const MediaSyncPlayer = ({ videoId }) => {
         setCurrentTime(ytTime);
         setDuration(ytDuration);
 
-        // Sync audio with YouTube
         if (
           audioRef.current &&
           Math.abs(audioRef.current.currentTime - ytTime) > 0.5
@@ -216,7 +221,6 @@ const MediaSyncPlayer = ({ videoId }) => {
     return () => clearInterval(interval);
   }, [youtubeReady]);
 
-  // Set initial audio volume when ref is ready
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = audioVolume;
@@ -229,7 +233,6 @@ const MediaSyncPlayer = ({ videoId }) => {
       setIsFullscreen(!!document.fullscreenElement);
       if (document.fullscreenElement) {
         setShowFullscreenControls(true);
-        // Auto-hide controls after 3 seconds
         if (fullscreenTimeoutRef.current) {
           clearTimeout(fullscreenTimeoutRef.current);
         }
@@ -267,10 +270,24 @@ const MediaSyncPlayer = ({ videoId }) => {
       }
     };
 
+    const handleTouchStart = () => {
+      if (isFullscreen) {
+        setShowFullscreenControls(true);
+        if (fullscreenTimeoutRef.current) {
+          clearTimeout(fullscreenTimeoutRef.current);
+        }
+        fullscreenTimeoutRef.current = setTimeout(() => {
+          setShowFullscreenControls(false);
+        }, 4000); // Longer timeout for mobile
+      }
+    };
+
     if (isFullscreen) {
       document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("touchstart", handleTouchStart);
       return () => {
         document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("touchstart", handleTouchStart);
         if (fullscreenTimeoutRef.current) {
           clearTimeout(fullscreenTimeoutRef.current);
         }
@@ -291,7 +308,6 @@ const MediaSyncPlayer = ({ videoId }) => {
       youtubePlayerRef.current.pauseVideo();
       audioRef.current.pause();
       setIsPlaying(false);
-      // Show controls when manually paused in fullscreen
       if (isFullscreen) {
         setShowFullscreenControls(true);
         if (fullscreenTimeoutRef.current) {
@@ -302,7 +318,6 @@ const MediaSyncPlayer = ({ videoId }) => {
       youtubePlayerRef.current.playVideo();
       audioRef.current.play();
       setIsPlaying(true);
-      // Start hide timer when playing in fullscreen
       if (isFullscreen) {
         if (fullscreenTimeoutRef.current) {
           clearTimeout(fullscreenTimeoutRef.current);
@@ -357,7 +372,7 @@ const MediaSyncPlayer = ({ videoId }) => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 px-2 md:px-0">
       {/* Video Player */}
       <Card className="overflow-hidden bg-black/20 backdrop-blur-sm border-white/10">
         <div
@@ -376,9 +391,9 @@ const MediaSyncPlayer = ({ videoId }) => {
                   : "opacity-0 pointer-events-none"
               }`}
             >
-              <div className="absolute bottom-0 left-0 right-0 p-6 space-y-4">
+              <div className="absolute bottom-0 left-0 right-0 p-3 md:p-6 space-y-2 md:space-y-4">
                 {/* Progress Bar */}
-                <div className="space-y-2">
+                <div className="space-y-1 md:space-y-2">
                   <Slider
                     value={[currentTime]}
                     max={duration || 100}
@@ -386,31 +401,31 @@ const MediaSyncPlayer = ({ videoId }) => {
                     onValueChange={(value) => handleSeek(value[0])}
                     className="w-full"
                   />
-                  <div className="flex justify-between text-sm text-white">
+                  <div className="flex justify-between text-xs md:text-sm text-white">
                     <span>{formatTime(currentTime)}</span>
                     <span>{formatTime(duration)}</span>
                   </div>
                 </div>
 
                 {/* Control Buttons */}
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center justify-center gap-2 md:gap-4">
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleSkipBack}
-                    className="text-white hover:bg-white/20 h-14 w-14"
+                    className="text-white hover:bg-white/20 h-10 w-10 md:h-14 md:w-14"
                   >
-                    <SkipBack className="w-8 h-8" />
+                    <SkipBack className="w-5 h-5 md:w-8 md:h-8" />
                   </Button>
 
                   <Button
                     onClick={handlePlayPause}
-                    className="h-16 w-16 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="h-12 w-12 md:h-16 md:w-16 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                   >
                     {isPlaying ? (
-                      <Pause className="w-8 h-8 text-white" />
+                      <Pause className="w-6 h-6 md:w-8 md:h-8 text-white" />
                     ) : (
-                      <Play className="w-8 h-8 text-white ml-1" />
+                      <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-0.5 md:ml-1" />
                     )}
                   </Button>
 
@@ -418,26 +433,30 @@ const MediaSyncPlayer = ({ videoId }) => {
                     variant="ghost"
                     size="icon"
                     onClick={handleSkipForward}
-                    className="text-white hover:bg-white/20 h-14 w-14"
+                    className="text-white hover:bg-white/20 h-10 w-10 md:h-14 md:w-14"
                   >
-                    <SkipForward className="w-8 h-8" />
+                    <SkipForward className="w-5 h-5 md:w-8 md:h-8" />
                   </Button>
 
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleFullscreen}
-                    className="text-white hover:bg-white/20 h-14 w-14"
+                    className="text-white hover:bg-white/20 h-10 w-10 md:h-14 md:w-14"
                   >
-                    <Minimize className="w-8 h-8" />
+                    <Minimize className="w-5 h-5 md:w-8 md:h-8" />
                   </Button>
                 </div>
 
-                {/* Volume Controls */}
-                <div className="grid grid-cols-2 gap-6 max-w-2xl mx-auto">
-                  <div className="flex items-center gap-3">
-                    <Volume2 className="w-5 h-5 text-white" />
-                    <span className="text-sm text-white min-w-[60px]">
+                {/* Volume Controls - Mobile: Vertical stack, Desktop: Grid */}
+                <div
+                  className={`${
+                    isMobile ? "space-y-3" : "grid grid-cols-2 gap-6"
+                  } max-w-2xl mx-auto`}
+                >
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-white flex-shrink-0" />
+                    <span className="text-xs md:text-sm text-white min-w-[40px] md:min-w-[60px]">
                       Video
                     </span>
                     <Slider
@@ -447,14 +466,14 @@ const MediaSyncPlayer = ({ videoId }) => {
                       onValueChange={(value) => handleVolumeChange(value[0])}
                       className="flex-1"
                     />
-                    <span className="text-sm text-white min-w-[40px]">
+                    <span className="text-xs md:text-sm text-white min-w-[35px] md:min-w-[40px]">
                       {Math.round(volume * 100)}%
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <Volume2 className="w-5 h-5 text-white" />
-                    <span className="text-sm text-white min-w-[60px]">
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-white flex-shrink-0" />
+                    <span className="text-xs md:text-sm text-white min-w-[40px] md:min-w-[60px]">
                       Audio
                     </span>
                     <Slider
@@ -466,7 +485,7 @@ const MediaSyncPlayer = ({ videoId }) => {
                       }
                       className="flex-1"
                     />
-                    <span className="text-sm text-white min-w-[40px]">
+                    <span className="text-xs md:text-sm text-white min-w-[35px] md:min-w-[40px]">
                       {Math.round(audioVolume * 100)}%
                     </span>
                   </div>
@@ -497,24 +516,31 @@ const MediaSyncPlayer = ({ videoId }) => {
         onVolumeChange={handleVolumeChange}
         onAudioVolumeChange={handleAudioVolumeChange}
         onFullscreen={handleFullscreen}
+        isMobile={isMobile}
       />
 
-      {/* Info Panel */}
-      <Card className="p-6 bg-white/10 backdrop-blur-sm border-white/20">
-        <div className="grid md:grid-cols-2 gap-6">
+      {/* Info Panel - Mobile: Single column, Desktop: Two columns */}
+      <Card className="p-4 md:p-6 bg-white/10 backdrop-blur-sm border-white/20">
+        <div
+          className={`${isMobile ? "space-y-4" : "grid md:grid-cols-2 gap-6"}`}
+        >
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-              <span className="w-3 h-3 bg-red-500 rounded-full"></span>
+            <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
+              <span className="w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full flex-shrink-0"></span>
               Video YouTube
             </h3>
-            <p className="text-gray-300 text-sm break-all">{youtubeUrl}</p>
+            <p className="text-gray-300 text-xs md:text-sm break-all">
+              {youtubeUrl}
+            </p>
           </div>
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-              <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+            <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
+              <span className="w-2 h-2 md:w-3 md:h-3 bg-blue-500 rounded-full flex-shrink-0"></span>
               Audio Archive.org
             </h3>
-            <p className="text-gray-300 text-sm break-all">{audioUrl}</p>
+            <p className="text-gray-300 text-xs md:text-sm break-all">
+              {audioUrl}
+            </p>
           </div>
         </div>
       </Card>
