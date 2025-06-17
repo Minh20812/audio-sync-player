@@ -357,13 +357,43 @@ const MediaSyncPlayer = ({ videoId }) => {
     }
   };
 
-  const handleFullscreen = () => {
+  const handleFullscreen = async () => {
     if (!videoContainerRef.current) return;
 
     if (document.fullscreenElement) {
       document.exitFullscreen();
+      // Unlock orientation when exiting fullscreen
+      if (screen.orientation && screen.orientation.unlock) {
+        try {
+          screen.orientation.unlock();
+        } catch (error) {
+          console.log("Could not unlock orientation:", error);
+        }
+      }
     } else {
-      videoContainerRef.current.requestFullscreen();
+      try {
+        await videoContainerRef.current.requestFullscreen();
+
+        // Lock to landscape orientation on mobile when entering fullscreen
+        if (isMobile && screen.orientation && screen.orientation.lock) {
+          try {
+            await screen.orientation.lock("landscape");
+          } catch (error) {
+            console.log("Could not lock orientation to landscape:", error);
+            // Fallback: try to lock to any landscape orientation
+            try {
+              await screen.orientation.lock("landscape-primary");
+            } catch (fallbackError) {
+              console.log(
+                "Could not lock to landscape-primary:",
+                fallbackError
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error entering fullscreen:", error);
+      }
     }
   };
 
