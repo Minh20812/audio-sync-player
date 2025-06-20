@@ -433,7 +433,7 @@ const MediaSyncPlayer = ({ videoId }) => {
           {isFullscreen && (
             <div
               className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-transform duration-300 z-20
-    ${showFullscreenControls ? "translate-y-0" : "translate-y-[50%]"}
+    ${showFullscreenControls ? "translate-y-0" : "translate-y-[25%]"}
   `}
               style={{ willChange: "transform" }}
             >
@@ -507,17 +507,11 @@ const MediaSyncPlayer = ({ videoId }) => {
                   )}
                 </div>
 
-                {/* Volume Controls */}
-                <div
-                  className={`${
-                    isMobile ? "space-y-3" : "grid grid-cols-2 gap-6"
-                  } max-w-2xl mx-auto`}
-                >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-white flex-shrink-0" />
-                    <span className="text-xs md:text-sm text-white min-w-[40px] md:min-w-[60px]">
-                      Video
-                    </span>
+                {/* Volume Controls đơn giản cho fullscreen */}
+                <div className="flex items-center justify-between gap-4 max-w-xl mx-auto mt-4">
+                  {/* Video Volume (trái) */}
+                  <div className="flex items-center gap-2 flex-1">
+                    <Volume2 className="w-5 h-5 text-white" />
                     <Slider
                       value={[volume]}
                       max={1}
@@ -525,16 +519,13 @@ const MediaSyncPlayer = ({ videoId }) => {
                       onValueChange={(value) => handleVolumeChange(value[0])}
                       className="flex-1"
                     />
-                    <span className="text-xs md:text-sm text-white min-w-[35px] md:min-w-[40px]">
+                    <span className="text-xs text-white min-w-[32px] text-right">
                       {Math.round(volume * 100)}%
                     </span>
                   </div>
-
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-white flex-shrink-0" />
-                    <span className="text-xs md:text-sm text-white min-w-[40px] md:min-w-[60px]">
-                      Audio
-                    </span>
+                  {/* Audio Volume (phải) */}
+                  <div className="flex items-center gap-2 flex-1 justify-end">
+                    <Volume2 className="w-5 h-5 text-white" />
                     <Slider
                       value={[audioVolume]}
                       max={1}
@@ -544,7 +535,7 @@ const MediaSyncPlayer = ({ videoId }) => {
                       }
                       className="flex-1"
                     />
-                    <span className="text-xs md:text-sm text-white min-w-[35px] md:min-w-[40px]">
+                    <span className="text-xs text-white min-w-[32px] text-right">
                       {Math.round(audioVolume * 100)}%
                     </span>
                   </div>
