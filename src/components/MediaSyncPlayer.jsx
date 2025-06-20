@@ -10,6 +10,7 @@ import {
   Volume2,
   Minimize,
   Maximize,
+  RotateCw,
 } from "lucide-react";
 import PlayerControls from "./PlayerControl";
 import { formatArchiveId, formatArchiveFilename } from "@/utils/archive";
@@ -252,41 +253,24 @@ const MediaSyncPlayer = ({ videoId }) => {
 
   // Show controls on mouse move in fullscreen
   useEffect(() => {
-    const handleMouseMove = () => {
-      if (isFullscreen) {
-        setShowFullscreenControls(true);
-        if (fullscreenTimeoutRef.current) {
-          clearTimeout(fullscreenTimeoutRef.current);
-        }
-        fullscreenTimeoutRef.current = setTimeout(() => {
-          setShowFullscreenControls(false);
-        }, 3000);
-      }
+    if (!isFullscreen) return;
+
+    const handleShowControls = () => {
+      setShowFullscreenControls(true);
+      if (fullscreenTimeoutRef.current)
+        clearTimeout(fullscreenTimeoutRef.current);
+      fullscreenTimeoutRef.current = setTimeout(() => {
+        setShowFullscreenControls(false);
+      }, 3000);
     };
 
-    const handleTouchStart = () => {
-      if (isFullscreen) {
-        setShowFullscreenControls(true);
-        if (fullscreenTimeoutRef.current) {
-          clearTimeout(fullscreenTimeoutRef.current);
-        }
-        fullscreenTimeoutRef.current = setTimeout(() => {
-          setShowFullscreenControls(false);
-        }, 4000);
-      }
-    };
+    document.addEventListener("click", handleShowControls);
 
-    if (isFullscreen) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("touchstart", handleTouchStart);
-      return () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("touchstart", handleTouchStart);
-        if (fullscreenTimeoutRef.current) {
-          clearTimeout(fullscreenTimeoutRef.current);
-        }
-      };
-    }
+    return () => {
+      document.removeEventListener("click", handleShowControls);
+      if (fullscreenTimeoutRef.current)
+        clearTimeout(fullscreenTimeoutRef.current);
+    };
   }, [isFullscreen]);
 
   const formatTime = (time) => {
@@ -324,6 +308,17 @@ const MediaSyncPlayer = ({ videoId }) => {
       }
     } catch (error) {
       console.error("Error in play/pause:", error);
+    }
+  };
+
+  const handleRotateLandscape = async () => {
+    if (isMobile && screen.orientation && screen.orientation.lock) {
+      try {
+        await screen.orientation.lock("landscape");
+      } catch (error) {
+        // Fallback hoặc thông báo nếu không hỗ trợ
+        alert("Thiết bị hoặc trình duyệt không hỗ trợ xoay ngang tự động.");
+      }
     }
   };
 
@@ -437,11 +432,10 @@ const MediaSyncPlayer = ({ videoId }) => {
           {/* Fullscreen Controls Overlay */}
           {isFullscreen && (
             <div
-              className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-opacity duration-300 ${
-                showFullscreenControls
-                  ? "opacity-100"
-                  : "opacity-0 pointer-events-none"
-              }`}
+              className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-transform duration-300 z-20
+    ${showFullscreenControls ? "translate-y-0" : "translate-y-[50%]"}
+  `}
+              style={{ willChange: "transform" }}
             >
               <div className="absolute bottom-0 left-0 right-0 p-3 md:p-6 space-y-2 md:space-y-4">
                 {/* Progress Bar */}
@@ -498,6 +492,19 @@ const MediaSyncPlayer = ({ videoId }) => {
                   >
                     <Minimize className="w-5 h-5 md:w-8 md:h-8" />
                   </Button>
+
+                  {/* Nút xoay ngang chỉ hiển thị trên mobile và fullscreen */}
+                  {isMobile && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleRotateLandscape}
+                      className="text-white hover:bg-white/20 h-10 w-10 md:h-14 md:w-14"
+                      title="Xoay ngang màn hình"
+                    >
+                      <RotateCw className="w-5 h-5 md:w-8 md:h-8" />
+                    </Button>
+                  )}
                 </div>
 
                 {/* Volume Controls */}
