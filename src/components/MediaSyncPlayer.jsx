@@ -433,7 +433,7 @@ const MediaSyncPlayer = ({ videoId }) => {
           {isFullscreen && (
             <div
               className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-transform duration-300 z-20
-    ${showFullscreenControls ? "translate-y-0" : "translate-y-[25%]"}
+    ${showFullscreenControls ? "translate-y-0" : "translate-y-[30%]"}
   `}
               style={{ willChange: "transform" }}
             >
