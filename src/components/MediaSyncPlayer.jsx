@@ -11,6 +11,8 @@ import {
   Minimize,
   Maximize,
   RotateCw,
+  Captions,
+  CaptionsOff,
 } from "lucide-react";
 import PlayerControls from "./PlayerControl";
 import { formatArchiveId, formatArchiveFilename } from "@/utils/archive";
@@ -19,11 +21,12 @@ const MediaSyncPlayer = ({ videoId }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.15);
+  const [volume, setVolume] = useState(0.25);
   const [audioVolume, setAudioVolume] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showFullscreenControls, setShowFullscreenControls] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [captionsEnabled, setCaptionsEnabled] = useState(true);
 
   const audioRef = useRef(null);
   const youtubePlayerRef = useRef(null);
@@ -392,6 +395,20 @@ const MediaSyncPlayer = ({ videoId }) => {
     }
   };
 
+  const handleToggleCaptions = () => {
+    if (!youtubePlayerRef.current) return;
+    try {
+      if (captionsEnabled) {
+        youtubePlayerRef.current.unloadModule("captions");
+      } else {
+        youtubePlayerRef.current.loadModule("captions");
+      }
+      setCaptionsEnabled((prev) => !prev);
+    } catch (error) {
+      console.error("Error toggling captions:", error);
+    }
+  };
+
   const handleSkipBack = () => {
     const newTime = Math.max(0, currentTime - 10);
     handleSeek(newTime);
@@ -505,6 +522,18 @@ const MediaSyncPlayer = ({ videoId }) => {
                       <RotateCw className="w-5 h-5 md:w-8 md:h-8" />
                     </Button>
                   )}
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleToggleCaptions}
+                    className={`text-white hover:bg-white/20 h-10 w-10 md:h-14 md:w-14`}
+                    title={captionsEnabled ? "Tắt phụ đề" : "Bật phụ đề"}
+                  >
+                    <span className="text-lg md:text-xl">
+                      {captionsEnabled ? <CaptionsOff /> : <Captions />}
+                    </span>
+                  </Button>
                 </div>
 
                 {/* Volume Controls đơn giản cho fullscreen */}
