@@ -11,7 +11,10 @@ import {
 
 const Examples = ({ onSelectExample }) => {
   const [videos, setVideos] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const saved = localStorage.getItem("examples_currentPage");
+    return saved ? parseInt(saved, 10) : 1;
+  });
   const [addedCount, setAddedCount] = useState(0);
   const itemsPerPage = 4;
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +26,10 @@ const Examples = ({ onSelectExample }) => {
     };
     loadVideos();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("examples_currentPage", currentPage);
+  }, [currentPage]);
 
   const handleUpdateLinks = async () => {
     try {
