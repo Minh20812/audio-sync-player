@@ -13,6 +13,7 @@ import {
   RotateCw,
   Captions,
   CaptionsOff,
+  AlertCircle,
 } from "lucide-react";
 import PlayerControls from "./PlayerControl";
 import { formatArchiveId, formatArchiveFilename } from "@/utils/archive";
@@ -27,6 +28,8 @@ const MediaSyncPlayer = ({ videoId }) => {
   const [showFullscreenControls, setShowFullscreenControls] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const audioRef = useRef(null);
   const youtubePlayerRef = useRef(null);
@@ -35,14 +38,63 @@ const MediaSyncPlayer = ({ videoId }) => {
   const [youtubeReady, setYoutubeReady] = useState(false);
   const [isYouTubeAPILoaded, setIsYouTubeAPILoaded] = useState(false);
 
-  const formattedArchiveId = formatArchiveId(videoId);
-  const formattedArchiveFilename = formatArchiveFilename(videoId);
+  // Validate and clean video ID
+  const validateVideoId = (id) => {
+    if (!id) return null;
+
+    // Remove any URL parameters or extra characters
+    let cleanId = id.toString().trim();
+
+    // Extract video ID from YouTube URL if provided
+    const youtubeRegex =
+      /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = cleanId.match(youtubeRegex);
+
+    if (match) {
+      cleanId = match[1];
+    }
+
+    // Validate format (YouTube video IDs are 11 characters)
+    if (/^[a-zA-Z0-9_-]{11}$/.test(cleanId)) {
+      return cleanId;
+    }
+
+    return null;
+  };
+
+  const validVideoId = validateVideoId(videoId);
+  const formattedArchiveId = validVideoId
+    ? formatArchiveId(validVideoId)
+    : null;
+  const formattedArchiveFilename = validVideoId
+    ? formatArchiveFilename(validVideoId)
+    : [];
 
   const audioUrl = formattedArchiveFilename.map((name) => [
     `https://archive.org/download/${formattedArchiveId}/${name}`,
     name.endsWith(".mp3") ? "audio/mpeg" : "audio/ogg",
   ]);
-  const youtubeUrl = `https://youtube.com/watch?v=${videoId}`;
+  const youtubeUrl = validVideoId
+    ? `https://youtube.com/watch?v=${validVideoId}`
+    : null;
+
+  // Check if video ID is valid
+  useEffect(() => {
+    if (!videoId) {
+      setError("Không có video ID được cung cấp");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!validVideoId) {
+      setError(`Video ID không hợp lệ: "${videoId}". Vui lòng kiểm tra lại.`);
+      setIsLoading(false);
+      return;
+    }
+
+    setError(null);
+    setIsLoading(true);
+  }, [videoId, validVideoId]);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -93,7 +145,10 @@ const MediaSyncPlayer = ({ videoId }) => {
 
   // Initialize/Update YouTube Player when videoId changes
   useEffect(() => {
-    if (!isYouTubeAPILoaded || !videoId) return;
+    if (!isYouTubeAPILoaded || !validVideoId || error) {
+      setIsLoading(false);
+      return;
+    }
 
     // Destroy existing player
     if (youtubePlayerRef.current && youtubePlayerRef.current.destroy) {
@@ -109,6 +164,7 @@ const MediaSyncPlayer = ({ videoId }) => {
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    setError(null);
 
     // Create new player
     const initPlayer = () => {
@@ -116,7 +172,7 @@ const MediaSyncPlayer = ({ videoId }) => {
         youtubePlayerRef.current = new window.YT.Player("youtube-player", {
           height: "100%",
           width: "100%",
-          videoId: videoId,
+          videoId: validVideoId,
           playerVars: {
             autoplay: 0,
             controls: 0,
@@ -132,6 +188,7 @@ const MediaSyncPlayer = ({ videoId }) => {
           events: {
             onReady: (event) => {
               setYoutubeReady(true);
+              setIsLoading(false);
               event.target.setVolume(volume * 100);
               event.target.setPlaybackQuality(isMobile ? "small" : "medium");
 
@@ -180,17 +237,43 @@ const MediaSyncPlayer = ({ videoId }) => {
                 }
               }
             },
+            onError: (event) => {
+              let errorMessage = "Lỗi không xác định";
+              switch (event.data) {
+                case 2:
+                  errorMessage = `Video ID không hợp lệ: "${validVideoId}"`;
+                  break;
+                case 5:
+                  errorMessage = "Lỗi HTML5 player";
+                  break;
+                case 100:
+                  errorMessage = "Video không tồn tại hoặc đã bị xóa";
+                  break;
+                case 101:
+                case 150:
+                  errorMessage =
+                    "Video không thể phát được do hạn chế của chủ sở hữu";
+                  break;
+                default:
+                  errorMessage = `Lỗi YouTube player: ${event.data}`;
+              }
+              setError(errorMessage);
+              setIsLoading(false);
+              console.error("YouTube Player Error:", event.data, errorMessage);
+            },
           },
         });
       } catch (error) {
         console.error("Error creating YouTube player:", error);
+        setError(`Không thể tạo YouTube player: ${error.message}`);
+        setIsLoading(false);
       }
     };
 
     // Small delay to ensure DOM is ready
     const timer = setTimeout(initPlayer, 100);
     return () => clearTimeout(timer);
-  }, [videoId, isYouTubeAPILoaded, volume, isMobile]);
+  }, [validVideoId, isYouTubeAPILoaded, volume, isMobile, error]);
 
   // Sync time updates
   useEffect(() => {
@@ -438,6 +521,51 @@ const MediaSyncPlayer = ({ videoId }) => {
     };
   }, []);
 
+  // Render error state
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 px-2 md:px-0">
+        <Card className="overflow-hidden bg-red-500/20 backdrop-blur-sm border-red-500/30">
+          <div className="aspect-video relative flex items-center justify-center bg-red-900/20">
+            <div className="text-center space-y-4 p-8">
+              <AlertCircle className="w-16 h-16 text-red-400 mx-auto" />
+              <h3 className="text-xl font-semibold text-red-200">
+                Lỗi Video Player
+              </h3>
+              <p className="text-red-300 max-w-md">{error}</p>
+              <div className="space-y-2 text-sm text-red-400">
+                <p>
+                  <strong>Video ID được cung cấp:</strong> {videoId}
+                </p>
+                {validVideoId && (
+                  <p>
+                    <strong>Video ID hợp lệ:</strong> {validVideoId}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Render loading state
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 px-2 md:px-0">
+        <Card className="overflow-hidden bg-black/20 backdrop-blur-sm border-white/10">
+          <div className="aspect-video relative flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+              <p className="text-white">Đang tải video player...</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 px-2 md:px-0">
       {/* Video Player */}
@@ -579,59 +707,68 @@ const MediaSyncPlayer = ({ videoId }) => {
       </Card>
 
       {/* Audio Player (Hidden but functional) */}
-      <audio
-        controls
-        preload="metadata"
-        crossOrigin="anonymous"
-        ref={audioRef}
-        key={videoId}
-      >
-        {audioUrl.map(([src, type]) => (
-          <source key={src} src={src} type={type} />
-        ))}
-        Trình duyệt của bạn không hỗ trợ audio.
-      </audio>
+      {validVideoId && formattedArchiveFilename.length > 0 && (
+        <audio
+          controls
+          preload="metadata"
+          crossOrigin="anonymous"
+          ref={audioRef}
+          key={validVideoId}
+        >
+          {audioUrl.map(([src, type]) => (
+            <source key={src} src={src} type={type} />
+          ))}
+          Trình duyệt của bạn không hỗ trợ audio.
+        </audio>
+      )}
 
       {/* Controls */}
-      <PlayerControls
-        isPlaying={isPlaying}
-        currentTime={currentTime}
-        duration={duration}
-        volume={volume}
-        audioVolume={audioVolume}
-        onPlayPause={handlePlayPause}
-        onSeek={handleSeek}
-        onVolumeChange={handleVolumeChange}
-        onAudioVolumeChange={handleAudioVolumeChange}
-        onFullscreen={handleFullscreen}
-        isMobile={isMobile}
-      />
+      {validVideoId && !error && (
+        <PlayerControls
+          isPlaying={isPlaying}
+          currentTime={currentTime}
+          duration={duration}
+          volume={volume}
+          audioVolume={audioVolume}
+          onPlayPause={handlePlayPause}
+          onSeek={handleSeek}
+          onVolumeChange={handleVolumeChange}
+          onAudioVolumeChange={handleAudioVolumeChange}
+          onFullscreen={handleFullscreen}
+          isMobile={isMobile}
+        />
+      )}
 
       {/* Info Panel */}
-      <Card className="p-4 md:p-6 bg-white/10 backdrop-blur-sm border-white/20">
-        <div
-          className={`${isMobile ? "space-y-4" : "grid md:grid-cols-2 gap-6"}`}
-        >
-          <div className="space-y-2">
-            <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
-              <span className="w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full flex-shrink-0"></span>
-              Video YouTube
-            </h3>
-            <p className="text-gray-300 text-xs md:text-sm break-all">
-              {youtubeUrl}
-            </p>
+      {validVideoId && youtubeUrl && (
+        <Card className="p-4 md:p-6 bg-white/10 backdrop-blur-sm border-white/20">
+          <div
+            className={`${
+              isMobile ? "space-y-4" : "grid md:grid-cols-2 gap-6"
+            }`}
+          >
+            <div className="space-y-2">
+              <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
+                <span className="w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full flex-shrink-0"></span>
+                Video YouTube
+              </h3>
+              <p className="text-gray-300 text-xs md:text-sm break-all">
+                {youtubeUrl}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
+                <span className="w-2 h-2 md:w-3 md:h-3 bg-blue-500 rounded-full flex-shrink-0"></span>
+                Audio Archive.org
+              </h3>
+              <p className="text-gray-300 text-xs md:text-sm break-all">
+                {audioRef.current?.currentSrc ||
+                  (audioUrl.length > 0 ? audioUrl[0][0] : "N/A")}
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
-              <span className="w-2 h-2 md:w-3 md:h-3 bg-blue-500 rounded-full flex-shrink-0"></span>
-              Audio Archive.org
-            </h3>
-            <p className="text-gray-300 text-xs md:text-sm break-all">
-              {audioRef.current?.currentSrc || audioUrl[0][0]}
-            </p>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      )}
     </div>
   );
 };
