@@ -38,7 +38,10 @@ const MediaSyncPlayer = ({ videoId }) => {
   const formattedArchiveId = formatArchiveId(videoId);
   const formattedArchiveFilename = formatArchiveFilename(videoId);
 
-  const audioUrl = `https://archive.org/download/${formattedArchiveId}/${formattedArchiveFilename}`;
+  const audioUrl = formattedArchiveFilename.map((name) => [
+    `https://archive.org/download/${formattedArchiveId}/${name}`,
+    name.endsWith(".mp3") ? "audio/mpeg" : "audio/ogg",
+  ]);
   const youtubeUrl = `https://youtube.com/watch?v=${videoId}`;
 
   // Detect mobile screen size
@@ -577,12 +580,17 @@ const MediaSyncPlayer = ({ videoId }) => {
 
       {/* Audio Player (Hidden but functional) */}
       <audio
-        ref={audioRef}
-        src={audioUrl}
+        controls
         preload="metadata"
         crossOrigin="anonymous"
-        key={videoId} // Force re-render when videoId changes
-      />
+        ref={audioRef}
+        key={videoId}
+      >
+        {audioUrl.map(([src, type]) => (
+          <source key={src} src={src} type={type} />
+        ))}
+        Trình duyệt của bạn không hỗ trợ audio.
+      </audio>
 
       {/* Controls */}
       <PlayerControls
@@ -619,7 +627,7 @@ const MediaSyncPlayer = ({ videoId }) => {
               Audio Archive.org
             </h3>
             <p className="text-gray-300 text-xs md:text-sm break-all">
-              {audioUrl}
+              {audioRef.current?.currentSrc || audioUrl[0][0]}
             </p>
           </div>
         </div>

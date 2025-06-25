@@ -22,16 +22,16 @@ export const formatArchiveId = (archiveId) => {
 };
 
 export const formatArchiveFilename = (archiveFilename) => {
-  if (!archiveFilename) return null;
+  if (!archiveFilename) return [];
 
   if (archiveFilename.startsWith("-")) {
     const match = archiveFilename.match(/^-(.{10})/);
     if (match) {
-      return `__${match[1]}.mp3`;
+      return [`__${match[1]}.mp3`, `__${match[1]}.ogg`];
     }
   } else {
-    return `${archiveFilename}.mp3`;
+    return [`${archiveFilename}.mp3`, `${archiveFilename}.ogg`];
   }
 
-  return archiveFilename;
+  return [];
 };
