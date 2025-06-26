@@ -13,7 +13,15 @@ const Examples = ({ onSelectExample }) => {
   const [videos, setVideos] = useState([]);
   const [currentPage, setCurrentPage] = useState(() => {
     const saved = localStorage.getItem("examples_currentPage");
-    return saved ? parseInt(saved, 10) : 1;
+    const savedTime = localStorage.getItem("examples_currentPage_time");
+    if (saved && savedTime) {
+      const now = Date.now();
+      if (now - parseInt(savedTime, 10) < 3600000) {
+        // 1h = 3600000ms
+        return parseInt(saved, 10);
+      }
+    }
+    return 1;
   });
   const [addedCount, setAddedCount] = useState(0);
   const itemsPerPage = 4;
@@ -29,6 +37,7 @@ const Examples = ({ onSelectExample }) => {
 
   useEffect(() => {
     localStorage.setItem("examples_currentPage", currentPage);
+    localStorage.setItem("examples_currentPage_time", Date.now().toString());
   }, [currentPage]);
 
   const handleUpdateLinks = async () => {
@@ -71,29 +80,6 @@ const Examples = ({ onSelectExample }) => {
   return (
     <Card className="bg-white/5 border-white/10">
       <CardContent className="p-3 sm:p-4 md:p-6">
-        {/* Nút chuyển trang */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
-          <Button
-            variant="outline"
-            onClick={handlePreviousPage}
-            disabled={currentPage === 1}
-            className="text-gray-400 hover:text-white text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
-          >
-            Previous
-          </Button>
-          <span className="text-white text-xs sm:text-sm order-first sm:order-none">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages}
-            className="text-gray-400 hover:text-white text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
-          >
-            Next
-          </Button>
-        </div>
-
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
           <h3 className="text-white font-medium text-sm sm:text-base">
             Try These Examples:
@@ -152,6 +138,29 @@ const Examples = ({ onSelectExample }) => {
               </Button>
             </div>
           ))}
+        </div>
+
+        {/* Nút chuyển trang */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+          <Button
+            variant="outline"
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className="text-gray-400 hover:text-white text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
+          >
+            Previous
+          </Button>
+          <span className="text-white text-xs sm:text-sm order-first sm:order-none">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className="text-gray-400 hover:text-white text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
+          >
+            Next
+          </Button>
         </div>
       </CardContent>
     </Card>

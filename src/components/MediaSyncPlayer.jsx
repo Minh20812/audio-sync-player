@@ -14,6 +14,7 @@ import {
   Captions,
   CaptionsOff,
   AlertCircle,
+  SlidersHorizontal,
 } from "lucide-react";
 import PlayerControls from "./PlayerControl";
 import { formatArchiveId, formatArchiveFilename } from "@/utils/archive";
@@ -30,6 +31,17 @@ const MediaSyncPlayer = ({ videoId }) => {
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [currentQuality, setCurrentQuality] = useState("default");
+  const videoQualities = [
+    { label: "Auto", value: "default" },
+    { label: "144p", value: "tiny" },
+    { label: "240p", value: "small" },
+    { label: "360p", value: "medium" },
+    { label: "480p", value: "large" },
+    { label: "720p", value: "hd720" },
+    { label: "1080p", value: "hd1080" },
+  ];
 
   const audioRef = useRef(null);
   const youtubePlayerRef = useRef(null);
@@ -69,10 +81,15 @@ const MediaSyncPlayer = ({ videoId }) => {
   const formattedArchiveFilename = validVideoId
     ? formatArchiveFilename(validVideoId)
     : [];
+  // Ưu tiên .ogg trước .mp3
+  const sortedArchiveFilename = [
+    ...formattedArchiveFilename.filter((name) => name.endsWith(".ogg")),
+    ...formattedArchiveFilename.filter((name) => name.endsWith(".mp3")),
+  ];
 
-  const audioUrl = formattedArchiveFilename.map((name) => [
+  const audioUrl = sortedArchiveFilename.map((name) => [
     `https://archive.org/download/${formattedArchiveId}/${name}`,
-    name.endsWith(".mp3") ? "audio/mpeg" : "audio/ogg",
+    name.endsWith(".ogg") ? "audio/ogg" : "audio/mpeg",
   ]);
   const youtubeUrl = validVideoId
     ? `https://youtube.com/watch?v=${validVideoId}`
@@ -368,6 +385,18 @@ const MediaSyncPlayer = ({ videoId }) => {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
+  const handleSetQuality = (quality) => {
+    setCurrentQuality(quality);
+    setShowQualityMenu(false);
+    if (
+      youtubePlayerRef.current &&
+      youtubePlayerRef.current.setPlaybackQuality &&
+      quality !== "default"
+    ) {
+      youtubePlayerRef.current.setPlaybackQuality(quality);
+    }
+  };
+
   const handlePlayPause = () => {
     if (!youtubePlayerRef.current || !audioRef.current) return;
 
@@ -569,25 +598,24 @@ const MediaSyncPlayer = ({ videoId }) => {
   return (
     <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 px-2 md:px-0">
       {/* Video Player */}
-      <Card className="overflow-hidden bg-black/20 backdrop-blur-sm border-white/10">
+      <Card className="overflow-hidden bg-zinc-900/80 backdrop-blur-sm border border-zinc-700 rounded-xl">
         <div
           ref={videoContainerRef}
           data-fullscreen-container
           className="aspect-video relative"
         >
-          <div id="youtube-player" className="absolute inset-0"></div>
+          <div id="youtube-player" className="absolute inset-0" />
 
-          {/* Fullscreen Controls Overlay */}
           {isFullscreen && (
             <div
-              className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-transform duration-300 z-20
-    ${showFullscreenControls ? "translate-y-0" : "translate-y-[35%]"}
-  `}
+              className={`absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent transition-transform duration-300 z-20 ${
+                showFullscreenControls ? "translate-y-0" : "translate-y-[30%]"
+              }`}
               style={{ willChange: "transform" }}
             >
-              <div className="absolute bottom-0 left-0 right-0 p-3 md:p-6 space-y-2 md:space-y-4">
+              <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 space-y-3">
                 {/* Progress Bar */}
-                <div className="space-y-1 md:space-y-2">
+                <div className="space-y-2">
                   <Slider
                     value={[currentTime]}
                     max={duration || 100}
@@ -595,31 +623,77 @@ const MediaSyncPlayer = ({ videoId }) => {
                     onValueChange={(value) => handleSeek(value[0])}
                     className="w-full"
                   />
-                  <div className="flex justify-between text-xs md:text-sm text-white">
+                  <div className="flex justify-between text-xs sm:text-sm text-white font-mono">
                     <span>{formatTime(currentTime)}</span>
                     <span>{formatTime(duration)}</span>
                   </div>
                 </div>
 
-                {/* Control Buttons */}
-                <div className="flex items-center justify-center gap-2 md:gap-4">
+                {/* Controls */}
+                <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-4">
+                  {/* Chất lượng */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowQualityMenu((v) => !v)}
+                    className="text-white hover:bg-white/10 h-10 w-10 sm:h-12 sm:w-12"
+                    title="Chất lượng"
+                  >
+                    <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </Button>
+
+                  {showQualityMenu && (
+                    <div className="absolute bottom-24 right-4 sm:right-6 bg-neutral-900/90 border border-white/10 rounded-md shadow-xl z-40 w-44 animate-fade-in transition-opacity duration-200">
+                      <div className="py-2">
+                        {videoQualities.map((q) => (
+                          <button
+                            key={q.value}
+                            onClick={() => {
+                              handleSetQuality(q.value);
+                              setShowQualityMenu(false); // đóng menu sau khi chọn
+                            }}
+                            className={`flex items-center justify-between w-full px-4 py-2 text-sm text-white hover:bg-white/10 transition-colors ${
+                              q.value === currentQuality
+                                ? "font-bold text-blue-400"
+                                : ""
+                            }`}
+                          >
+                            <span>{q.label}</span>
+                            {q.value === currentQuality && (
+                              <svg
+                                className="w-4 h-4 text-blue-400"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Các nút điều khiển chính */}
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleSkipBack}
-                    className="text-white hover:bg-white/20 h-10 w-10 md:h-14 md:w-14"
+                    className="text-white hover:bg-white/10 h-10 w-10 sm:h-12 sm:w-12"
                   >
-                    <SkipBack className="w-5 h-5 md:w-8 md:h-8" />
+                    <SkipBack className="w-5 h-5 sm:w-6 sm:h-6" />
                   </Button>
 
                   <Button
                     onClick={handlePlayPause}
-                    className="h-12 w-12 md:h-16 md:w-16 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-xl"
                   >
                     {isPlaying ? (
-                      <Pause className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                      <Pause className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                     ) : (
-                      <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-0.5 md:ml-1" />
+                      <Play className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                     )}
                   </Button>
 
@@ -627,78 +701,49 @@ const MediaSyncPlayer = ({ videoId }) => {
                     variant="ghost"
                     size="icon"
                     onClick={handleSkipForward}
-                    className="text-white hover:bg-white/20 h-10 w-10 md:h-14 md:w-14"
+                    className="text-white hover:bg-white/10 h-10 w-10 sm:h-12 sm:w-12"
                   >
-                    <SkipForward className="w-5 h-5 md:w-8 md:h-8" />
+                    <SkipForward className="w-5 h-5 sm:w-6 sm:h-6" />
                   </Button>
 
+                  {/* Fullscreen */}
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleFullscreen}
-                    className="text-white hover:bg-white/20 h-10 w-10 md:h-14 md:w-14"
+                    className="text-white hover:bg-white/10 h-10 w-10 sm:h-12 sm:w-12"
+                    title="Fullscreen"
                   >
-                    <Minimize className="w-5 h-5 md:w-8 md:h-8" />
+                    <Minimize className="w-5 h-5 sm:w-6 sm:h-6" />
                   </Button>
 
-                  {/* Nút xoay ngang chỉ hiển thị trên mobile và fullscreen */}
+                  {/* Rotate (mobile) */}
                   {isMobile && (
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={handleRotateLandscape}
-                      className="text-white hover:bg-white/20 h-10 w-10 md:h-14 md:w-14"
-                      title="Xoay ngang màn hình"
+                      className="text-white hover:bg-white/10 h-10 w-10 sm:h-12 sm:w-12"
+                      title="Xoay ngang"
                     >
-                      <RotateCw className="w-5 h-5 md:w-8 md:h-8" />
+                      <RotateCw className="w-5 h-5 sm:w-6 sm:h-6" />
                     </Button>
                   )}
 
+                  {/* Captions */}
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleToggleCaptions}
-                    className={`text-white hover:bg-white/20 h-10 w-10 md:h-14 md:w-14`}
+                    className="text-white hover:bg-white/10 h-10 w-10 sm:h-12 sm:w-12"
                     title={captionsEnabled ? "Tắt phụ đề" : "Bật phụ đề"}
                   >
-                    <span className="text-lg md:text-xl">
-                      {captionsEnabled ? <CaptionsOff /> : <Captions />}
-                    </span>
+                    {captionsEnabled ? (
+                      <CaptionsOff className="w-5 h-5 sm:w-6 sm:h-6" />
+                    ) : (
+                      <Captions className="w-5 h-5 sm:w-6 sm:h-6" />
+                    )}
                   </Button>
-                </div>
-
-                {/* Volume Controls đơn giản cho fullscreen */}
-                <div className="flex items-center justify-between gap-4 max-w-xl mx-auto mt-4">
-                  {/* Video Volume (trái) */}
-                  <div className="flex items-center gap-2 flex-1">
-                    <Volume2 className="w-5 h-5 text-white" />
-                    <Slider
-                      value={[volume]}
-                      max={1}
-                      step={0.01}
-                      onValueChange={(value) => handleVolumeChange(value[0])}
-                      className="flex-1"
-                    />
-                    <span className="text-xs text-white min-w-[32px] text-right">
-                      {Math.round(volume * 100)}%
-                    </span>
-                  </div>
-                  {/* Audio Volume (phải) */}
-                  <div className="flex items-center gap-2 flex-1 justify-end">
-                    <Volume2 className="w-5 h-5 text-white" />
-                    <Slider
-                      value={[audioVolume]}
-                      max={1}
-                      step={0.01}
-                      onValueChange={(value) =>
-                        handleAudioVolumeChange(value[0])
-                      }
-                      className="flex-1"
-                    />
-                    <span className="text-xs text-white min-w-[32px] text-right">
-                      {Math.round(audioVolume * 100)}%
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
