@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, Loader } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { RefreshCcw, Loader, Plus, List } from "lucide-react";
 import { toast } from "sonner";
 import {
   parseVideoUrlsFromDrive,
@@ -9,7 +10,7 @@ import {
   clearFirestoreVideos,
 } from "@/utils/videoUtils";
 
-const Examples = ({ onSelectExample }) => {
+const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
   const [videos, setVideos] = useState([]);
   const [currentPage, setCurrentPage] = useState(() => {
     const saved = localStorage.getItem("examples_currentPage");
@@ -77,6 +78,10 @@ const Examples = ({ onSelectExample }) => {
     onSelectExample(videoId);
   };
 
+  const handleSelectVideo = (videoId) => {
+    onSelectVideo(videoId);
+  };
+
   return (
     <Card className="bg-white/5 border-white/10">
       <CardContent className="p-3 sm:p-4 md:p-6">
@@ -84,23 +89,43 @@ const Examples = ({ onSelectExample }) => {
           <h3 className="text-white font-medium text-sm sm:text-base">
             Try These Examples:
           </h3>
-          <Button
-            variant="solid"
-            onClick={handleUpdateLinks}
-            disabled={isLoading}
-            className={`bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-all duration-300 text-xs sm:text-sm w-full sm:w-auto justify-center ${
-              isLoading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-          >
-            {isLoading ? (
-              <Loader className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
-            ) : (
-              <RefreshCcw className="w-3 h-3 sm:w-4 sm:h-4" />
-            )}
-            {isLoading ? "Đang cập nhật..." : "Cập nhật link mới"}
-          </Button>
-        </div>
 
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto flex-row">
+            <Button
+              variant="solid"
+              onClick={handleUpdateLinks}
+              disabled={isLoading}
+              className={`bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-all duration-300 text-xs sm:text-sm w-full sm:w-auto justify-center ${
+                isLoading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {isLoading ? (
+                <Loader className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+              ) : (
+                <RefreshCcw className="w-3 h-3 sm:w-4 sm:h-4" />
+              )}
+              {isLoading ? "Đang cập nhật..." : "Cập nhật link mới"}
+            </Button>
+
+            <NavLink
+              to="/selected"
+              className={({ isActive }) =>
+                `flex items-center space-x-2 px-4 py-2 rounded-lg font-medium relative transition-all duration-300 ${
+                  isActive
+                    ? " text-white  hover:bg-blue-700"
+                    : "bg-blue-600 text-white"
+                }`
+              }
+            >
+              <List className="h-5 w-5" />
+              {selectedVideos.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
+                  {selectedVideos.length}
+                </span>
+              )}
+            </NavLink>
+          </div>
+        </div>
         {/* Hiển thị thông báo số lượng dữ liệu đã thêm */}
         {addedCount > 0 && (
           <p className="text-xs sm:text-sm text-green-500 mb-3">
@@ -135,6 +160,13 @@ const Examples = ({ onSelectExample }) => {
                 className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
               >
                 Play Now
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleSelectVideo(video)}
+                className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
+              >
+                <Plus />
               </Button>
             </div>
           ))}

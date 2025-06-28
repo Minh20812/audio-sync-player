@@ -42,7 +42,7 @@ const FullscreenControls = ({
   return (
     <div
       className={`absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent transition-transform duration-300 z-20 ${
-        showFullscreenControls ? "translate-y-0" : "translate-y-[30%]"
+        showFullscreenControls ? "translate-y-0" : "translate-y-[35%]"
       }`}
       style={{ willChange: "transform" }}
     >

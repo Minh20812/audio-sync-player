@@ -7,10 +7,12 @@ import { toast } from "sonner";
 import VideoUploader from "@/components/VideoUploader";
 import MediaSyncPlayer from "@/components/MediaSyncPlayer";
 import Examples from "@/components/Examples";
+import { useVideo } from "@/contexts/VideoContext";
 
 const Index = () => {
   const [videoId, setVideoId] = useState("");
   const [isMediaLoaded, setIsMediaLoaded] = useState(false);
+  const { addVideo, selectedVideos } = useVideo();
 
   const handleSyncAndPlay = () => {
     if (!videoId) {
@@ -39,6 +41,10 @@ const Index = () => {
     }, 1000); // Wait 1 second for component to mount and initialize
   };
 
+  const handleSelectVideo = (video) => {
+    addVideo(video);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -51,7 +57,11 @@ const Index = () => {
           </p>
         </div> */}
 
-        <Examples onSelectExample={handleSelectExample} />
+        <Examples
+          onSelectExample={handleSelectExample}
+          onSelectVideo={handleSelectVideo}
+          selectedVideos={selectedVideos}
+        />
 
         {isMediaLoaded && <MediaSyncPlayer videoId={videoId} />}
 
