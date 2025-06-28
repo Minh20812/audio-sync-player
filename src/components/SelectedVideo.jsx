@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Trash2, Copy, X } from "lucide-react";
+import { Trash2, Copy, X, Bot } from "lucide-react";
 import { useVideo } from "../contexts/VideoContext";
 import { toast } from "sonner";
 
@@ -147,25 +147,37 @@ ${links}`;
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Video đã chọn
-          </h1>
-          <p className="text-gray-600">
-            {selectedVideos.length} video -{" "}
-            {Math.ceil(selectedVideos.length / 4)} nhóm copy
-          </p>
+        <div className="flex items-center gap-3 mb-2">
+          <a href="/" className="inline-block">
+            <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
+          </a>
+          <h1 className="text-2xl font-bold text-gray-900">Video đã chọn</h1>
         </div>
+        <p className="text-gray-600">
+          {selectedVideos.length} video - {Math.ceil(selectedVideos.length / 4)}{" "}
+          nhóm copy
+        </p>
 
-        {selectedVideos.length > 0 && (
-          <button
-            onClick={clearVideos}
-            className="flex items-center space-x-2 px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors mt-4 sm:mt-0"
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-4 sm:mt-0">
+          {selectedVideos.length > 0 && (
+            <button
+              onClick={clearVideos}
+              className="flex items-center space-x-2 px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Xóa tất cả</span>
+            </button>
+          )}
+          {/* Nút truy cập Gemini */}
+          <a
+            href="https://gemini.google.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-all duration-300 text-xs sm:text-sm w-full sm:w-auto justify-center`}
           >
-            <Trash2 className="h-4 w-4" />
-            <span>Xóa tất cả</span>
-          </button>
-        )}
+            <Bot />
+          </a>
+        </div>
       </div>
 
       {/* Copy Groups */}
