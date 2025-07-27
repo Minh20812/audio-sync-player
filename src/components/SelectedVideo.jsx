@@ -26,17 +26,21 @@ Tôi sẽ gửi bạn các link video YouTube. Hãy giúp tôi tạo các bản 
 
 🎯 Yêu cầu quan trọng:
 
+- Trích xuất và ghi đúng **tên đầy đủ của video** như hiển thị trên YouTube.
+
 - Trích xuất và ghi đúng **tên kênh YouTube** đăng tải video.
 
 - Không dịch hoặc rút gọn tiêu đề hoặc tên kênh.
 
-- Dịch tên video sang tiếng Việt và đặt phần dịch này ở ngay đầu phần tóm tắt.
+- Dịch tên video sang tiếng Việt và đặt phần dịch này ở ngay đầu phần tóm tắt, trước khi đọc tên video gốc.
 
 🎧 Yêu cầu tóm tắt:
 
 - Mở đầu bằng câu:  
 
-  👉 “Bạn đang nghe tóm tắt video ‘[Tên video dịch tiếng Việt]’ đến từ kênh ‘[Tên Kênh]’.”
+  👉 “Tiêu đề tiếng Việt: [Tên video dịch tiếng Việt].
+
+  👉 “Bạn đang nghe tóm tắt video ‘[Tên Video]’ đến từ kênh ‘[Tên Kênh]’.”
 
 - Giới thiệu ngắn nội dung chính của video.
 
