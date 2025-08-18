@@ -27,19 +27,39 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
   const itemsPerPage = 4;
   const [isLoading, setIsLoading] = useState(false);
 
+  const isNewVideo = (createdAt) => {
+    if (!createdAt) return false;
+    const today = new Date();
+    const videoDate = createdAt.toDate(); // Convert Firestore Timestamp to Date
+    return (
+      videoDate.getDate() === today.getDate() &&
+      videoDate.getMonth() === today.getMonth() &&
+      videoDate.getFullYear() === today.getFullYear()
+    );
+  };
+
   useEffect(() => {
     const loadVideos = async () => {
       // Bước 1: Lấy danh sách document (chỉ có url)
       const rawList = await fetchLatestVideosFromFirestore();
       // Bước 2: Lấy thông tin chi tiết từng video
       const infoPromises = rawList
-        .map((doc) => doc.url)
+        .map((doc) => ({
+          url: doc.url,
+          createdAt: doc.createdAt,
+        }))
         .filter(Boolean)
-        .map(async (url) => {
-          const id = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1];
+        .map(async (doc) => {
+          // Đổi tên tham số từ url thành doc
+          const id = doc.url.match(
+            /(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+          )?.[1];
           if (!id) return null;
           const info = await fetchVideoInfo(id);
-          return info;
+          return {
+            ...info,
+            createdAt: doc.createdAt,
+          };
         });
       const infoList = (await Promise.all(infoPromises)).filter(Boolean);
       setVideos(infoList);
@@ -105,12 +125,6 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
             </NavLink>
           </div>
         </div>
-        {/* Hiển thị thông báo số lượng dữ liệu đã thêm */}
-        {addedCount > 0 && (
-          <p className="text-xs sm:text-sm text-green-500 mb-3">
-            Đã lưu {addedCount} video mới từ Google Drive vào Firestore.
-          </p>
-        )}
 
         <div className="grid gap-2 sm:gap-3">
           {currentItems.map((video) => (
@@ -119,11 +133,19 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
               className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white/5 p-3 rounded-lg hover:bg-white/10 transition-colors"
             >
               <div className="flex items-center gap-3 w-full sm:flex-1">
-                <img
-                  src={video.thumbnail}
-                  alt={`Thumbnail for ${video.id}`}
-                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0"
-                />
+                <div className="relative">
+                  <img
+                    src={video.thumbnail}
+                    alt={`Thumbnail for ${video.id}`}
+                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0"
+                  />
+                  {/* Badge NEW */}
+                  {isNewVideo(video.createdAt) && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      NEW
+                    </span>
+                  )}
+                </div>
                 <div className="space-y-1 min-w-0 flex-1">
                   <h4 className="text-white font-medium text-sm sm:text-base line-clamp-2 break-words">
                     {video.title}

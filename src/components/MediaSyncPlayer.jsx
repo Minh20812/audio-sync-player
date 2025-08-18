@@ -14,7 +14,7 @@ import InfoPanel from "./InfoPanel";
 
 const MediaSyncPlayer = ({ videoId }) => {
   // State
-  const [volume, setVolume] = useState(0.25);
+  const [volume, setVolume] = useState(0.4);
   const [audioVolume, setAudioVolume] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
