@@ -97,6 +97,10 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
     onSelectVideo(videoId);
   };
 
+  const handleOpenYTVideo = (videoId) => {
+    window.open(`https://www.youtube.com/watch?v=${videoId}`, "_blank");
+  };
+
   return (
     <Card className="bg-white/5 border-white/10">
       <CardContent className="p-3 sm:p-4 md:p-6">
@@ -137,7 +141,8 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
                   <img
                     src={video.thumbnail}
                     alt={`Thumbnail for ${video.id}`}
-                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0"
+                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0 cursor-pointer"
+                    onClick={() => handleOpenYTVideo(video.id)}
                   />
                   {/* Badge NEW */}
                   {isNewVideo(video.createdAt) && (
