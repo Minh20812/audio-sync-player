@@ -8,6 +8,16 @@ import {
   fetchLatestVideosFromFirestore,
   fetchVideoInfo,
 } from "@/utils/videoUtils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import db from "@/utils/firebaseConfig";
 
 const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
   const [videos, setVideos] = useState([]);
@@ -26,6 +36,8 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
   const [addedCount, setAddedCount] = useState(0);
   const itemsPerPage = 4;
   const [isLoading, setIsLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newVideoUrl, setNewVideoUrl] = useState("");
 
   const isNewVideo = (createdAt) => {
     if (!createdAt) return false;
@@ -40,29 +52,64 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
 
   useEffect(() => {
     const loadVideos = async () => {
-      // Bước 1: Lấy danh sách document (chỉ có url)
-      const rawList = await fetchLatestVideosFromFirestore();
-      // Bước 2: Lấy thông tin chi tiết từng video
-      const infoPromises = rawList
-        .map((doc) => ({
-          url: doc.url,
-          createdAt: doc.createdAt,
-        }))
-        .filter(Boolean)
-        .map(async (doc) => {
-          // Đổi tên tham số từ url thành doc
-          const id = doc.url.match(
-            /(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-          )?.[1];
-          if (!id) return null;
-          const info = await fetchVideoInfo(id);
-          return {
-            ...info,
+      try {
+        setIsLoading(true);
+        const rawList = await fetchLatestVideosFromFirestore();
+        const infoPromises = rawList
+          .map((doc) => ({
+            url: doc.url,
             createdAt: doc.createdAt,
-          };
-        });
-      const infoList = (await Promise.all(infoPromises)).filter(Boolean);
-      setVideos(infoList);
+            // Thêm các thông tin dự phòng từ document gốc
+            backupInfo: {
+              title: doc.title,
+              channel: doc.channel,
+              thumbnail: doc.thumbnail,
+              channel_url: doc.channel_url,
+              description: doc.description,
+              upload_date: doc.upload_date,
+              view_count: doc.view_count,
+            },
+          }))
+          .filter(Boolean)
+          .map(async (doc) => {
+            const id = doc.url.match(
+              /(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+            )?.[1];
+            if (!id) return null;
+
+            try {
+              const info = await fetchVideoInfo(id);
+              return {
+                ...info,
+                createdAt: doc.createdAt,
+              };
+            } catch (error) {
+              // Nếu fetchVideoInfo thất bại, dùng thông tin dự phòng
+              console.log("Using backup info for video:", id);
+              return {
+                id,
+                title: doc.backupInfo.title || "Unknown Title",
+                channel: doc.backupInfo.channel || "Unknown Channel",
+                thumbnail:
+                  doc.backupInfo.thumbnail ||
+                  `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
+                createdAt: doc.createdAt,
+                channelUrl: doc.backupInfo.channel_url,
+                description: doc.backupInfo.description,
+                uploadDate: doc.backupInfo.upload_date,
+                viewCount: doc.backupInfo.view_count,
+              };
+            }
+          });
+
+        const infoList = (await Promise.all(infoPromises)).filter(Boolean);
+        setVideos(infoList);
+      } catch (error) {
+        console.error("Error loading videos:", error);
+        toast.error("Có lỗi khi tải danh sách video");
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadVideos();
   }, []);
@@ -101,6 +148,39 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
     window.open(`https://www.youtube.com/watch?v=${videoId}`, "_blank");
   };
 
+  const handleAddVideoToFireBase = async () => {
+    try {
+      setIsLoading(true);
+      // Validate URL
+      const videoId = newVideoUrl.match(
+        /(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+      )?.[1];
+
+      if (!videoId) {
+        toast.error("URL YouTube không hợp lệ!");
+        return;
+      }
+
+      // Thêm vào collection latest_video_links
+      const docRef = await addDoc(collection(db, "latest_video_links"), {
+        url: newVideoUrl,
+        createdAt: serverTimestamp(),
+      });
+
+      toast.success("Đã thêm video thành công!");
+      setNewVideoUrl("");
+      setIsModalOpen(false);
+
+      // Reload lại danh sách video
+      // loadVideos();
+    } catch (error) {
+      console.error("Error adding video:", error);
+      toast.error("Có lỗi xảy ra khi thêm video!");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <Card className="bg-white/5 border-white/10">
       <CardContent className="p-3 sm:p-4 md:p-6">
@@ -110,6 +190,13 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
           </h3>
 
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto flex-row">
+            <Button
+              size="sm"
+              onClick={() => setIsModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm px-4 py-2 w-full sm:w-auto"
+            >
+              <Plus />
+            </Button>
             <NavLink
               to="/selected"
               className={({ isActive }) =>
@@ -200,6 +287,46 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
             Next
           </Button>
         </div>
+
+        {/* Modal để thêm video */}
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Thêm Video YouTube Mới</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Input
+                  id="url"
+                  placeholder="Nhập URL video YouTube..."
+                  value={newVideoUrl}
+                  onChange={(e) => setNewVideoUrl(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsModalOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAddVideoToFireBase}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Thêm
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
