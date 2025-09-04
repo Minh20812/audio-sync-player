@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index.jsx";
+import Movies from "@/components/Movies.jsx";
 import Player from "@/components/Player.jsx";
 import Selected from "./pages/Selected.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -18,6 +19,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/movies" element={<Movies />} />
             <Route path="/player" element={<Player />} />
             <Route path="/selected" element={<Selected />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

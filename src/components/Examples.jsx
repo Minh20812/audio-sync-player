@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { RefreshCcw, Loader, Plus, List } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -18,6 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import db from "@/utils/firebaseConfig";
+import SearchVideo from "./SearchVideo";
+import PaginationControls from "./PaginationControls";
 
 const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
   const [videos, setVideos] = useState([]);
@@ -33,11 +35,14 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
     }
     return 1;
   });
-  const [addedCount, setAddedCount] = useState(0);
-  const itemsPerPage = 4;
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newVideoUrl, setNewVideoUrl] = useState("");
+  const [searchResult, setSearchResult] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const itemsPerPage = 4;
+  const preloadPages = 5;
 
   const isNewVideo = (createdAt) => {
     if (!createdAt) return false;
@@ -51,75 +56,123 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
   };
 
   useEffect(() => {
-    const loadVideos = async () => {
+    const loadInitialVideos = async () => {
       try {
         setIsLoading(true);
-        const rawList = await fetchLatestVideosFromFirestore();
-        const infoPromises = rawList
+        const {
+          videos: rawList,
+          totalCount,
+          hasMore,
+        } = await fetchLatestVideosFromFirestore(
+          1,
+          preloadPages * itemsPerPage
+        );
+
+        // Check if rawList is an array and not empty
+        if (!Array.isArray(rawList) || rawList.length === 0) {
+          setVideos([]);
+          setTotalCount(0);
+          setHasMore(false);
+          return;
+        }
+
+        const videoData = rawList
           .map((doc) => ({
-            url: doc.url,
+            id: doc.url?.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1],
             createdAt: doc.createdAt,
-            // Thêm các thông tin dự phòng từ document gốc
-            backupInfo: {
-              title: doc.title,
-              channel: doc.channel,
-              thumbnail: doc.thumbnail,
-              channel_url: doc.channel_url,
-              description: doc.description,
-              upload_date: doc.upload_date,
-              view_count: doc.view_count,
-            },
+            originalDoc: doc,
           }))
-          .filter(Boolean)
-          .map(async (doc) => {
-            const id = doc.url.match(
-              /(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-            )?.[1];
-            if (!id) return null;
+          .filter((item) => item.id);
 
-            try {
-              const info = await fetchVideoInfo(id);
-              return {
-                ...info,
-                createdAt: doc.createdAt,
-              };
-            } catch (error) {
-              // Nếu fetchVideoInfo thất bại, dùng thông tin dự phòng
-              console.log("Using backup info for video:", id);
-              return {
-                id,
-                title: doc.backupInfo.title || "Unknown Title",
-                channel: doc.backupInfo.channel || "Unknown Channel",
-                thumbnail:
-                  doc.backupInfo.thumbnail ||
-                  `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
-                createdAt: doc.createdAt,
-                channelUrl: doc.backupInfo.channel_url,
-                description: doc.backupInfo.description,
-                uploadDate: doc.backupInfo.upload_date,
-                viewCount: doc.backupInfo.view_count,
-              };
-            }
-          });
+        const videoIds = videoData.map((item) => item.id);
+        const videoInfoList = await fetchVideoInfo(videoIds);
 
-        const infoList = (await Promise.all(infoPromises)).filter(Boolean);
-        setVideos(infoList);
+        const videosWithTimestamp = videoInfoList.map((video) => {
+          const matchedData = videoData.find((item) => item.id === video.id);
+          return {
+            ...video,
+            createdAt: matchedData?.createdAt,
+            backupInfo: matchedData?.originalDoc || {},
+          };
+        });
+
+        setVideos(videosWithTimestamp);
+        setTotalCount(totalCount);
+        setHasMore(hasMore);
       } catch (error) {
-        console.error("Error loading videos:", error);
+        console.error("Error loading initial videos:", error);
         toast.error("Có lỗi khi tải danh sách video");
       } finally {
         setIsLoading(false);
       }
     };
-    loadVideos();
+
+    loadInitialVideos();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("examples_currentPage", currentPage);
-    localStorage.setItem("examples_currentPage_time", Date.now().toString());
-  }, [currentPage]);
+    const loadMoreVideos = async () => {
+      if (currentPage > preloadPages && hasMore) {
+        try {
+          setIsLoading(true);
+          const { videos: newRawList, hasMore: newHasMore } =
+            await fetchLatestVideosFromFirestore(currentPage, itemsPerPage);
 
-  const totalPages = Math.ceil(videos.length / itemsPerPage);
+          if (!Array.isArray(newRawList) || newRawList.length === 0) {
+            setHasMore(false);
+            return;
+          }
+
+          const newVideoData = newRawList
+            .map((doc) => ({
+              id: doc.url?.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1],
+              createdAt: doc.createdAt,
+              originalDoc: doc,
+            }))
+            .filter((item) => item.id);
+
+          const newVideoIds = newVideoData.map((item) => item.id);
+          const newVideoInfoList = await fetchVideoInfo(newVideoIds);
+
+          const newVideosWithTimestamp = newVideoInfoList.map((video) => {
+            const matchedData = newVideoData.find(
+              (item) => item.id === video.id
+            );
+            return {
+              ...video,
+              createdAt: matchedData?.createdAt,
+              backupInfo: matchedData?.originalDoc || {},
+            };
+          });
+
+          // Update videos array with new data at correct position
+          setVideos((prev) => {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const newVideos = [...prev];
+            newVideos.splice(
+              startIndex,
+              itemsPerPage,
+              ...newVideosWithTimestamp
+            );
+            return newVideos;
+          });
+
+          setHasMore(newHasMore);
+        } catch (error) {
+          console.error("Error loading more videos:", error);
+          toast.error("Có lỗi khi tải thêm video");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    if (currentPage > preloadPages) {
+      loadMoreVideos();
+    }
+  }, [currentPage, hasMore, itemsPerPage, preloadPages]);
+
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = videos.slice(indexOfFirstItem, indexOfLastItem);
@@ -181,13 +234,53 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
     }
   };
 
+  const handleVideoFound = (videoData) => {
+    setSearchResult(videoData);
+    setCurrentPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setSearchResult(null);
+  };
+
   return (
     <Card className="bg-white/5 border-white/10">
       <CardContent className="p-3 sm:p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
-          <h3 className="text-white font-medium text-sm sm:text-base">
-            Try These Examples:
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mb-4 sm:mb-6">
+          <h3 className="text-white font-medium text-sm sm:text-base shrink-0">
+            {searchResult ? (
+              "Kết quả tìm kiếm:"
+            ) : (
+              <>
+                <div className=" flex gap-2">
+                  <div className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white flex text-center items-center justify-center gap-2 px-4 py-2 rounded-lg">
+                    <Link to="/">{totalCount} Videos</Link>
+                  </div>
+
+                  <div className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white flex text-center items-center justify-center gap-2 px-4 py-2 rounded-lg">
+                    <Link to="/movies">Movies</Link>
+                  </div>
+                </div>
+              </>
+            )}
           </h3>
+
+          <div className="flex flex-col w-full sm:flex-row sm:items-center gap-2 sm:gap-3 md:max-w-2xl lg:max-w-3xl">
+            <div className="flex-1 min-w-0">
+              <SearchVideo onVideoFound={handleVideoFound} />
+            </div>
+            {searchResult && (
+              <Button
+                size="sm"
+                onClick={handleClearSearch}
+                variant="outline"
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 px-4 py-2"
+              >
+                <span className="hidden sm:inline">Xem tất cả</span>
+                <span className="sm:hidden">Tất cả</span>
+              </Button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto flex-row">
             <Button
@@ -218,21 +311,18 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
         </div>
 
         <div className="grid gap-2 sm:gap-3">
-          {currentItems.map((video) => (
-            <div
-              key={video.id}
-              className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white/5 p-3 rounded-lg hover:bg-white/10 transition-colors"
-            >
+          {searchResult ? (
+            // Hiển thị kết quả tìm kiếm
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white/5 p-3 rounded-lg hover:bg-white/10 transition-colors">
               <div className="flex items-center gap-3 w-full sm:flex-1">
                 <div className="relative">
                   <img
-                    src={video.thumbnail}
-                    alt={`Thumbnail for ${video.id}`}
+                    src={`https://img.youtube.com/vi/${searchResult.video_id}/0.jpg`}
+                    alt={`${searchResult.video_id}`}
                     className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0 cursor-pointer"
-                    onClick={() => handleOpenYTVideo(video.id)}
+                    onClick={() => handleOpenYTVideo(searchResult.video_id)}
                   />
-                  {/* Badge NEW */}
-                  {isNewVideo(video.createdAt) && (
+                  {isNewVideo(searchResult.createdAt) && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                       NEW
                     </span>
@@ -240,54 +330,87 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
                 </div>
                 <div className="space-y-1 min-w-0 flex-1">
                   <h4 className="text-white font-medium text-sm sm:text-base line-clamp-2 break-words">
-                    {video.title}
+                    {searchResult.title}
                   </h4>
                   <p className="text-xs sm:text-sm text-gray-400 truncate">
-                    {video.channel}
+                    {searchResult.channel}
                   </p>
                 </div>
               </div>
               <Button
                 size="sm"
-                onClick={() => handleSelectExample(video.id)}
+                onClick={() => handleSelectExample(searchResult.video_id)}
                 className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
               >
                 Play Now
               </Button>
               <Button
                 size="sm"
-                onClick={() => handleSelectVideo(video)}
+                onClick={() => handleSelectVideo(searchResult)}
                 className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
               >
                 <Plus />
               </Button>
             </div>
-          ))}
+          ) : (
+            currentItems.map((video) => (
+              <div
+                key={video.id}
+                className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white/5 p-3 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <div className="flex items-center gap-3 w-full sm:flex-1">
+                  <div className="relative">
+                    <img
+                      src={video.thumbnail}
+                      alt={`Thumbnail for ${video.id}`}
+                      className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0 cursor-pointer"
+                      onClick={() => handleOpenYTVideo(video.id)}
+                    />
+                    {/* Badge NEW */}
+                    {isNewVideo(video.createdAt) && (
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                        NEW
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <h4 className="text-white font-medium text-sm sm:text-base line-clamp-2 break-words">
+                      {video.title}
+                    </h4>
+                    <p className="text-xs sm:text-sm text-gray-400 truncate">
+                      {video.channel}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => handleSelectExample(video.id)}
+                  className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
+                >
+                  Play Now
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleSelectVideo(video)}
+                  className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
+                >
+                  <Plus />
+                </Button>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Nút chuyển trang */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
-          <Button
-            variant="outline"
-            onClick={handlePreviousPage}
-            disabled={currentPage === 1}
-            className="text-gray-400 hover:text-white text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
-          >
-            Previous
-          </Button>
-          <span className="text-white text-xs sm:text-sm order-first sm:order-none">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages}
-            className="text-gray-400 hover:text-white text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
-          >
-            Next
-          </Button>
-        </div>
-
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          hasMore={hasMore}
+          isLoading={isLoading}
+          onPrevious={handlePreviousPage}
+          onNext={handleNextPage}
+          searchResult={searchResult}
+        />
         {/* Modal để thêm video */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent className="sm:max-w-[425px]">

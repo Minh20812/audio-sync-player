@@ -48,7 +48,7 @@ const PlayerControls = ({
             max={duration || 100}
             step={1}
             onValueChange={(value) => onSeek(value[0])}
-            className="w-full"
+            className="w-full cursor-pointer"
           />
           <div className="flex justify-between text-xs sm:text-sm text-gray-300">
             <span>{formatTime(currentTime)}</span>

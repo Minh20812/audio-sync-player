@@ -8,6 +8,8 @@ import {
   orderBy,
   where,
   limit,
+  startAfter,
+  startAt,
   doc,
 } from "firebase/firestore";
 import db from "@/utils/firebaseConfig";
@@ -19,23 +21,52 @@ export const getYouTubeVideoId = (url) => {
   return match ? match[1] : null;
 };
 
-export const fetchVideoInfo = async (videoId) => {
-  try {
-    // 1) Thử lấy từ YouTube API trước
-    const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
+const videoInfoCache = new Map();
+const CACHE_DURATION = 60 * 60 * 1000; // 1 giờ
 
-    if (API_KEY) {
-      try {
+export const fetchVideoInfo = async (videoIds) => {
+  const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
+  const results = [];
+
+  // Lọc ra những video đã có trong cache và còn valid
+  const uncachedIds = [];
+  const now = Date.now();
+
+  for (const videoId of videoIds) {
+    const cached = videoInfoCache.get(videoId);
+    if (cached && now - cached.timestamp < CACHE_DURATION) {
+      results.push(cached.data);
+    } else {
+      uncachedIds.push(videoId);
+    }
+  }
+
+  // Nếu không có video nào cần fetch, return cached results
+  if (uncachedIds.length === 0) {
+    return results;
+  }
+
+  // YouTube API cho phép lấy tối đa 20 video trong 1 request
+  const batchSize = 20;
+
+  for (let i = 0; i < uncachedIds.length; i += batchSize) {
+    const batch = uncachedIds.slice(i, i + batchSize);
+    const batchIds = batch.join(",");
+
+    try {
+      if (API_KEY) {
         const response = await fetch(
-          `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${API_KEY}`
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${batchIds}&key=${API_KEY}`
         );
 
         if (response.ok) {
           const data = await response.json();
-          if (data.items && data.items.length > 0) {
-            const snippet = data.items[0].snippet;
-            return {
-              id: videoId,
+
+          // Process từng video trong batch
+          for (const item of data.items || []) {
+            const snippet = item.snippet;
+            const videoInfo = {
+              id: item.id,
               title: snippet.title,
               channel: snippet.channelTitle,
               channelUrl: `https://www.youtube.com/channel/${snippet.channelId}`,
@@ -46,196 +77,123 @@ export const fetchVideoInfo = async (videoId) => {
               uploadDate: snippet.publishedAt,
               source: "youtube_api",
             };
+
+            // Cache kết quả
+            videoInfoCache.set(item.id, {
+              data: videoInfo,
+              timestamp: now,
+            });
+
+            results.push(videoInfo);
+          }
+
+          // Đối với những video không có trong API response, fallback to Firestore
+          const foundIds = data.items?.map((item) => item.id) || [];
+          const missingIds = batch.filter((id) => !foundIds.includes(id));
+
+          for (const missingId of missingIds) {
+            try {
+              const fallbackInfo = await fetchVideoInfoFromFirestore(missingId);
+              if (fallbackInfo) {
+                videoInfoCache.set(missingId, {
+                  data: fallbackInfo,
+                  timestamp: now,
+                });
+                results.push(fallbackInfo);
+              }
+            } catch (error) {
+              console.warn(
+                `Failed to fetch fallback info for ${missingId}:`,
+                error
+              );
+            }
           }
         }
-      } catch (apiError) {
-        console.warn("YouTube API failed:", apiError.message);
+      } else {
+        // Nếu không có API key, fallback to Firestore cho tất cả
+        for (const videoId of batch) {
+          try {
+            const fallbackInfo = await fetchVideoInfoFromFirestore(videoId);
+            if (fallbackInfo) {
+              videoInfoCache.set(videoId, {
+                data: fallbackInfo,
+                timestamp: now,
+              });
+              results.push(fallbackInfo);
+            }
+          } catch (error) {
+            console.warn(
+              `Failed to fetch fallback info for ${videoId}:`,
+              error
+            );
+          }
+        }
+      }
+
+      // Thêm delay nhỏ giữa các batch để tránh rate limiting
+      if (i + batchSize < uncachedIds.length) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    } catch (error) {
+      console.error("Error fetching batch:", error);
+      // Fallback to Firestore for this batch
+      for (const videoId of batch) {
+        try {
+          const fallbackInfo = await fetchVideoInfoFromFirestore(videoId);
+          if (fallbackInfo) {
+            results.push(fallbackInfo);
+          }
+        } catch (fallbackError) {
+          console.warn(
+            `Failed to fetch fallback info for ${videoId}:`,
+            fallbackError
+          );
+        }
       }
     }
+  }
 
-    // 2) Fallback: Tìm trong Firestore collection "latest_video_links"
+  return results;
+};
+
+const fetchVideoInfoFromFirestore = async (videoId) => {
+  try {
     const colRef = collection(db, "latest_video_links");
 
-    // 2.a) Thử tìm theo original_url với các format khác nhau
+    // Thử các URL patterns khác nhau
     const possibleUrls = [
       `https://www.youtube.com/watch?v=${videoId}`,
       `https://youtu.be/${videoId}`,
-      `https://youtube.com/watch?v=${videoId}`,
-      `https://www.youtube.com/embed/${videoId}`,
     ];
 
-    let docSnap = null;
-
     for (const url of possibleUrls) {
-      try {
-        const querySnapshot = await getDocs(
-          query(colRef, where("original_url", "==", url), limit(1))
-        );
+      const querySnapshot = await getDocs(
+        query(colRef, where("original_url", "==", url), limit(1))
+      );
 
-        if (!querySnapshot.empty) {
-          docSnap = querySnapshot.docs[0];
-          break;
-        }
-      } catch (queryError) {
-        console.warn(`Query failed for URL ${url}:`, queryError.message);
-        continue;
+      if (!querySnapshot.empty) {
+        const data = querySnapshot.docs[0].data();
+        return {
+          id: videoId,
+          title: data.title || "Unknown Title",
+          channel: data.channel || "Unknown Channel",
+          channelUrl: data.channel_url || null,
+          description: data.description || "",
+          thumbnail:
+            data.all_thumbnails?.medium ||
+            `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+          uploadDate: data.createdAt?.toDate?.()?.toISOString() || null,
+          source: "firestore",
+        };
       }
     }
 
-    // 2.b) Nếu không tìm thấy theo URL, thử tìm theo videoId field (nếu có)
-    if (!docSnap) {
-      try {
-        const queryByVideoId = await getDocs(
-          query(colRef, where("videoId", "==", videoId), limit(1))
-        );
-
-        if (!queryByVideoId.empty) {
-          docSnap = queryByVideoId.docs[0];
-        }
-      } catch (queryError) {
-        console.warn("Query by videoId failed:", queryError.message);
-      }
-    }
-
-    // 2.c) Thử tìm document có ID trùng với videoId
-    if (!docSnap) {
-      try {
-        const directDoc = await getDoc(doc(colRef, videoId));
-        if (directDoc.exists()) {
-          docSnap = directDoc;
-        }
-      } catch (docError) {
-        console.warn("Direct document fetch failed:", docError.message);
-      }
-    }
-
-    // 3) Xử lý dữ liệu từ Firestore nếu tìm thấy
-    if (docSnap && docSnap.exists()) {
-      const data = docSnap.data();
-
-      // Parse thumbnail data
-      let thumbnailUrl = null;
-      if (data.all_thumbnails) {
-        // Ưu tiên medium, sau đó high, default
-        thumbnailUrl =
-          data.all_thumbnails.medium ||
-          data.all_thumbnails.high ||
-          data.all_thumbnails.default;
-      }
-
-      // Fallback thumbnail nếu không có
-      if (!thumbnailUrl) {
-        thumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-      }
-
-      // Parse upload date
-      let uploadDate = null;
-      if (data.createdAt) {
-        // Nếu là Firestore Timestamp
-        if (
-          data.createdAt.toDate &&
-          typeof data.createdAt.toDate === "function"
-        ) {
-          uploadDate = data.createdAt.toDate().toISOString();
-        } else if (data.createdAt._seconds) {
-          // Nếu là Timestamp object
-          uploadDate = new Date(data.createdAt._seconds * 1000).toISOString();
-        } else {
-          uploadDate = data.createdAt;
-        }
-      }
-
-      return {
-        id: videoId,
-        title: data.title || "Unknown Title",
-        channel: data.channel || "Unknown Channel",
-        channelUrl: data.channel_url || null,
-        description: data.description || "",
-        thumbnail: thumbnailUrl,
-        uploadDate: uploadDate,
-        duration: data.duration || 0,
-        viewCount: data.view_count || null,
-        isShort: data.is_short || false,
-        processed: data.processed || false,
-        subtitleCodes: data.subtitle_codes || null,
-        source: "firestore",
-      };
-    }
-
-    // 4) Nếu không tìm thấy gì, trả về fallback data
-    console.warn(`No data found for video ID: ${videoId}`);
-    return {
-      id: videoId,
-      title: "Video Added",
-      channel: "Unknown Channel",
-      channelUrl: null,
-      description: "No description available",
-      thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-      uploadDate: null,
-      duration: 0,
-      viewCount: null,
-      isShort: false,
-      processed: false,
-      subtitleCodes: null,
-      source: "fallback",
-    };
+    return null;
   } catch (error) {
-    console.error("Error in fetchVideoInfo:", error);
-
-    // Fallback cuối cùng để UI không bị crash
-    return {
-      id: videoId,
-      title: "Error Loading Video",
-      channel: "Unknown Channel",
-      channelUrl: null,
-      description: "An error occurred while loading video information",
-      thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-      uploadDate: null,
-      duration: 0,
-      viewCount: null,
-      isShort: false,
-      processed: false,
-      subtitleCodes: null,
-      source: "error_fallback",
-      error: error.message,
-    };
+    console.error("Error fetching from Firestore:", error);
+    return null;
   }
 };
-
-// export const parseVideoUrlsFromDrive = async () => {
-//   try {
-//     const API_KEY_DRIVE = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY;
-//     const FILE_ID = "1MjemMq0ElZJktHRVnEsXlcR4NNo1x_ez";
-
-//     const response = await fetch(
-//       `https://www.googleapis.com/drive/v3/files/${FILE_ID}?alt=media&key=${API_KEY_DRIVE}`
-//     );
-
-//     if (!response.ok) {
-//       throw new Error(
-//         `Failed to fetch file from Google Drive: ${response.status}`
-//       );
-//     }
-
-//     const text = await response.text();
-
-//     const urls = text
-//       .split("\n")
-//       .filter((line) => line.trim())
-//       .reverse()
-//       .map((url) => getYouTubeVideoId(url))
-//       .filter((id) => id);
-
-//     // Fetch video info for each video ID
-//     const videoInfoPromises = urls.map((id) => fetchVideoInfo(id));
-//     const videoInfoResults = await Promise.all(videoInfoPromises);
-
-//     return videoInfoResults.filter((info) => info); // Loại bỏ các giá trị null
-//   } catch (error) {
-//     console.error("Error loading video URLs from Google Drive:", error);
-//     return [];
-//   }
-// };
 
 export const parseVideoUrlsFromDrive = async () => {
   try {
@@ -288,6 +246,113 @@ export const parseVideoUrlsFromDrive = async () => {
   }
 };
 
+export const fetchLatestVideosFromFirestore = async (
+  page = 1,
+  itemsPerPage = 4
+) => {
+  try {
+    // Get total count first
+    const totalQuery = query(
+      collection(db, "latest_video_links"),
+      orderBy("createdAt", "desc")
+    );
+    const totalSnapshot = await getDocs(totalQuery);
+    const totalDocs = totalSnapshot.docs;
+    const totalCount = totalDocs.length;
+
+    // Calculate pagination
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+
+    // Get paginated data using array slice
+    const paginatedDocs = totalDocs.slice(startIndex, endIndex);
+    const videos = paginatedDocs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return {
+      videos,
+      totalCount,
+      hasMore: endIndex < totalCount,
+    };
+  } catch (error) {
+    console.error("Error fetching videos from Firestore:", error);
+    return {
+      videos: [],
+      totalCount: 0,
+      hasMore: false,
+    };
+  }
+};
+
+export const clearFirestoreVideos = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "videos"));
+    const deletePromises = querySnapshot.docs.map((doc) => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+    console.log("All videos cleared from Firestore.");
+  } catch (error) {
+    console.error("Error clearing videos from Firestore:", error);
+  }
+};
+
+export const clearVideoInfoCache = () => {
+  videoInfoCache.clear();
+};
+
+// 5. Thêm function để preload video info cho pagination
+export const preloadNextPageVideos = async (
+  startIndex,
+  endIndex,
+  allVideoUrls
+) => {
+  const videoIds = allVideoUrls
+    .slice(startIndex, endIndex)
+    .map((url) => url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1])
+    .filter(Boolean);
+
+  // Preload in background without blocking UI
+  setTimeout(() => {
+    fetchVideoInfo(videoIds);
+  }, 500);
+};
+
+// export const parseVideoUrlsFromDrive = async () => {
+//   try {
+//     const API_KEY_DRIVE = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY;
+//     const FILE_ID = "1MjemMq0ElZJktHRVnEsXlcR4NNo1x_ez";
+
+//     const response = await fetch(
+//       `https://www.googleapis.com/drive/v3/files/${FILE_ID}?alt=media&key=${API_KEY_DRIVE}`
+//     );
+
+//     if (!response.ok) {
+//       throw new Error(
+//         `Failed to fetch file from Google Drive: ${response.status}`
+//       );
+//     }
+
+//     const text = await response.text();
+
+//     const urls = text
+//       .split("\n")
+//       .filter((line) => line.trim())
+//       .reverse()
+//       .map((url) => getYouTubeVideoId(url))
+//       .filter((id) => id);
+
+//     // Fetch video info for each video ID
+//     const videoInfoPromises = urls.map((id) => fetchVideoInfo(id));
+//     const videoInfoResults = await Promise.all(videoInfoPromises);
+
+//     return videoInfoResults.filter((info) => info); // Loại bỏ các giá trị null
+//   } catch (error) {
+//     console.error("Error loading video URLs from Google Drive:", error);
+//     return [];
+//   }
+// };
+
 // export const fetchVideosFromFirestore = async () => {
 //   try {
 //     const querySnapshot = await getDocs(collection(db, "videos"));
@@ -303,36 +368,6 @@ export const parseVideoUrlsFromDrive = async () => {
 //     return [];
 //   }
 // };
-
-export const fetchLatestVideosFromFirestore = async () => {
-  try {
-    // Sử dụng orderBy với trường createdAt giảm dần
-    const q = query(
-      collection(db, "latest_video_links"),
-      orderBy("createdAt", "desc")
-    );
-    const querySnapshot = await getDocs(q);
-    const videos = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    return videos;
-  } catch (error) {
-    console.error("Error fetching videos from Firestore:", error);
-    return [];
-  }
-};
-
-export const clearFirestoreVideos = async () => {
-  try {
-    const querySnapshot = await getDocs(collection(db, "videos"));
-    const deletePromises = querySnapshot.docs.map((doc) => deleteDoc(doc.ref));
-    await Promise.all(deletePromises);
-    console.log("All videos cleared from Firestore.");
-  } catch (error) {
-    console.error("Error clearing videos from Firestore:", error);
-  }
-};
 
 // import {
 //   collection,

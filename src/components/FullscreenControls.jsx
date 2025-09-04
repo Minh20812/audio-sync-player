@@ -54,7 +54,7 @@ const FullscreenControls = ({
             max={duration || 100}
             step={1}
             onValueChange={(value) => onSeek(value[0])}
-            className="w-full"
+            className="w-full cursor-pointer"
           />
           <div className="flex justify-between text-xs sm:text-sm text-white font-mono">
             <span>{formatTime(currentTime)}</span>
