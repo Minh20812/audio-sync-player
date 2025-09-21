@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Trash2, Copy, X, Bot } from "lucide-react";
 import { useVideo } from "../contexts/VideoContext";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 const SelectedVideos = () => {
   const { selectedVideos, removeVideo, clearVideos } = useVideo();
@@ -146,12 +147,12 @@ ${links}`;
           <p className="text-gray-600 mb-6">
             Hãy quay lại trang tìm kiếm để thêm video vào danh sách
           </p>
-          <a
-            href="/"
+          <Link
+            to="/"
             className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Tìm video
-          </a>
+          </Link>
         </div>
       </div>
     );
