@@ -258,9 +258,8 @@ const Examples = ({ onSelectExample, onSelectVideo, selectedVideos }) => {
                   </div>
 
                   <div className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white flex text-center items-center justify-center gap-2 px-4 py-2 rounded-lg">
-                    <Link to="https://video-sync-audio.vercel.app/">
-                      Movies
-                    </Link>
+                    {/* <Link to="https://video-sync-audio.vercel.app/"> */}
+                    <Link to="https://tvphim.tv/">Movies</Link>
                   </div>
                 </div>
               </>
