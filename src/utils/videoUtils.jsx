@@ -15,9 +15,15 @@ import {
 import db from "@/utils/firebaseConfig";
 import { formatArchiveId } from "@/utils/archive";
 
-export const getYouTubeVideoId = (url) => {
+export const getYouTubeVideoId = (input) => {
+  // Nếu input đã là video ID (không chứa dấu / hoặc ?)
+  if (input && !input.includes("/") && !input.includes("?")) {
+    return input.trim();
+  }
+
+  // Nếu là URL, extract video ID
   const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/;
-  const match = url.match(regex);
+  const match = input.match(regex);
   return match ? match[1] : null;
 };
 
